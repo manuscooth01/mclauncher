@@ -126,6 +126,10 @@ fun VersionsScreen(filesDir: File, context: Context) {
     var versions by remember { mutableStateOf(listOf<Pair<String, String>>()) }
     var isLoading by remember { mutableStateOf(true) }
     var status by remember { mutableStateOf("") }
+    
+    // Estados para el motor de búsqueda y filtros rápidos
+    var selectedFilter by remember { mutableStateOf("ALL") }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         val cachedVersions = versionManager.loadFromCache()
@@ -153,6 +157,22 @@ fun VersionsScreen(filesDir: File, context: Context) {
         }
     }
 
+    // Filtrado, búsqueda y ordenamiento cronológico inverso en tiempo real
+    val filteredVersions = remember(versions, selectedFilter, searchQuery) {
+        var resultList = when (selectedFilter) {
+            "RELEASES" -> versions.filter { it.second == "release" }
+            "SNAPSHOTS" -> versions.filter { it.second == "snapshot" }
+            else -> versions
+        }
+
+        if (searchQuery.isNotBlank()) {
+            resultList = resultList.filter { it.first.contains(searchQuery, ignoreCase = true) }
+        }
+
+        // Ordenar de forma descendente para mantener las versiones más nuevas arriba
+        resultList.sortedByDescending { it.first }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = CyberDark,
@@ -164,13 +184,76 @@ fun VersionsScreen(filesDir: File, context: Context) {
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
+            
+            if (!isLoading) {
+                // INPUT DE BÚSQUEDA CYBERPUNK CON LUPA
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("BUSCAR VERSIÓN...", color = CyberCyan.copy(alpha = 0.4f), fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Icon(imageVector = Icons.Filled.Search, contentDescription = "Buscar", tint = CyberCyan, modifier = Modifier.size(18.dp)) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(imageVector = Icons.Filled.Clear, contentDescription = "Limpiar", tint = NeonGreen, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = CyberCyan,
+                        unfocusedBorderColor = CyberSurface,
+                        containerColor = CyberPanel
+                    ),
+                    shape = RoundedCornerShape(2.dp),
+                    singleLine = true
+                )
+
+                // PESTAÑAS / BOTONES DE FILTRO RÁPIDO
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val filterOptions = listOf("ALL", "RELEASES", "SNAPSHOTS")
+                    filterOptions.forEach { option ->
+                        val isSelected = selectedFilter == option
+                        val buttonAccent = when (option) {
+                            "RELEASES" -> NeonGreen
+                            "SNAPSHOTS" -> CyberCyan
+                            else -> Color.White
+                        }
+
+                        Button(
+                            onClick = { selectedFilter = option },
+                            modifier = Modifier.weight(1f).height(32.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) buttonAccent else CyberSurface
+                            ),
+                            shape = RoundedCornerShape(1.dp),
+                            border = BorderStroke(1.dp, if (isSelected) buttonAccent else buttonAccent.copy(alpha = 0.2f)),
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = option,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isSelected) CyberDark else buttonAccent,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+                }
+            }
+
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(versions, key = { it.first }) { (id, type) ->
+                    items(filteredVersions, key = { it.first }) { (id, type) ->
                         VersionCard(id, type) {
                             if (!versionManager.isInternetAvailable()) {
                                 scope.launch { snackbarHostState.showSnackbar("No hay conexión a internet. Por favor, verifica tu conexión.") }
