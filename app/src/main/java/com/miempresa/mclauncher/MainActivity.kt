@@ -205,7 +205,8 @@ fun VersionsScreen(filesDir: File, context: Context) {
                         unfocusedTextColor = Color.White,
                         focusedBorderColor = CyberCyan,
                         unfocusedBorderColor = CyberSurface,
-                        containerColor = CyberPanel
+                        focusedContainerColor = CyberPanel,
+                        unfocusedContainerColor = CyberPanel
                     ),
                     shape = RoundedCornerShape(2.dp),
                     singleLine = true
