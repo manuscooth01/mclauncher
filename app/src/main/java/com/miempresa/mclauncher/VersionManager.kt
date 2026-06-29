@@ -158,4 +158,9 @@ class VersionManager(private val filesDir: File, private val context: Context) {
             onStatus("❌ CORE_FETCH_FAILURE")
         }
     }
+
+    fun isVersionInstalled(versionId: String): Boolean {
+        val jarFile = File(filesDir, "versions/$versionId/$versionId.jar")
+        return jarFile.exists() && jarFile.length() > 0
+    }
 }

@@ -146,8 +146,7 @@ class VersionsViewModel(
     }
 
     fun isVersionInstalled(versionId: String): Boolean {
-        // Simulación: retorna false siempre (luego se conectará con el sistema de archivos)
-        return false
+        return versionManager.isVersionInstalled(versionId)
     }
 
     fun launchGame() {
@@ -157,7 +156,12 @@ class VersionsViewModel(
                 _effects.emit(VersionsEffect.ShowSnackbar("Selecciona una versión primero"))
                 return@launch
             }
-            _effects.emit(VersionsEffect.ShowSnackbar("Lanzando ${selection.displayName()}..."))
+            if (!isVersionInstalled(selection.versionId)) {
+                _effects.emit(VersionsEffect.ShowSnackbar("La versión no está instalada. Descárgala primero."))
+                return@launch
+            }
+            // Aquí irá la integración con PojavLauncher más adelante
+            _effects.emit(VersionsEffect.ShowSnackbar("✅ ${selection.displayName()} está instalada. Listo para iniciar."))
         }
     }
 }
