@@ -815,3 +815,69 @@ fun AccountScreen(settingsManager: SettingsManager) {
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(viewModel: SettingsViewModel) {
+    val ram by viewModel.ramAllocation.collectAsState()
+    val isDevMode by viewModel.isDevMode.collectAsState()
+    val gamePath by viewModel.gamePath.collectAsState()
+
+    Scaffold(
+        containerColor = CyberDark,
+        topBar = {
+            TopAppBar(
+                title = { Text("LucyMC // SYSTEM_RUTAS", fontWeight = FontWeight.BLACK, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("MATRIZ DE ALMACENAMIENTO DE JUEGO", fontSize = 10.sp, fontWeight = FontWeight.BLACK, color = CyberCyan)
+            OutlinedTextField(value = gamePath, onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
+                Switch(
+                    checked = isDevMode,
+                    onCheckedChange = { viewModel.toggleDevMode() },
+                    colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen)
+                )
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CyberSurface),
+                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        "ASIGNACIÓN LÍMITE DE RAM JVM (-Xmx)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.BLACK,
+                        color = CyberCyan
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${ram.toInt()} MB ALLOCATED",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.BLACK,
+                        color = NeonGreen
+                    )
+                    Slider(
+                        value = ram,
+                        onValueChange = viewModel::setRamAllocation,
+                        valueRange = 1024f..8192f,
+                        steps = 7,
+                        colors = SliderDefaults.colors(
+                            thumbColor = NeonGreen,
+                            activeTrackColor = NeonGreen,
+                            inactiveTrackColor = CyberSurface
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
