@@ -14,23 +14,16 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
-/**
- * Gestor centralizado de peticiones de red y operaciones de versiones.
- */
 class VersionManager(private val filesDir: File, private val context: Context) {
 
     companion object {
         private const val MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
         private const val CONNECT_TIMEOUT = 8000
         private const val READ_TIMEOUT = 8000
-        private const val MAX_VERSIONS_DISPLAY = 40
         private const val PREFS_NAME = "mclauncher_cache"
         private const val KEY_VERSIONS_LIST = "versions_list"
     }
 
-    /**
-     * Verifica si hay conexión a internet disponible.
-     */
     fun isInternetAvailable(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -45,11 +38,6 @@ class VersionManager(private val filesDir: File, private val context: Context) {
         }
     }
 
-    /**
-     * Carga la lista de versiones desde el manifiesto de Mojang.
-     * Si hay caché disponible, lo devuelve primero mientras refresca en segundo plano.
-     * @return Lista de pares (versionId, versionType)
-     */
     suspend fun fetchVersions(): Result<List<Pair<String, String>>> = withContext(Dispatchers.IO) {
         try {
             val url = URL(MANIFEST_URL)
@@ -67,23 +55,19 @@ class VersionManager(private val filesDir: File, private val context: Context) {
             val versionsArray = manifest.getJSONArray("versions")
             val list = mutableListOf<Pair<String, String>>()
 
-            for (i in 0 until minOf(versionsArray.length(), MAX_VERSIONS_DISPLAY)) {
+            // TODAS las versiones (sin límite)
+            for (i in 0 until versionsArray.length()) {
                 val v = versionsArray.getJSONObject(i)
                 list.add(v.getString("id") to v.getString("type"))
             }
 
-            // Guardar en caché
             saveToCache(versionsArray)
-
             Result.success(list)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Carga las versiones desde la caché local si existen.
-     */
     fun loadFromCache(): List<Pair<String, String>>? {
         return try {
             val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -91,7 +75,7 @@ class VersionManager(private val filesDir: File, private val context: Context) {
 
             val jsonArray = JSONObject(cachedData).getJSONArray("versions")
             val cachedVersions = mutableListOf<Pair<String, String>>()
-            for (i in 0 until minOf(jsonArray.length(), MAX_VERSIONS_DISPLAY)) {
+            for (i in 0 until jsonArray.length()) {
                 val v = jsonArray.getJSONObject(i)
                 cachedVersions.add(v.getString("id") to v.getString("type"))
             }
@@ -101,9 +85,6 @@ class VersionManager(private val filesDir: File, private val context: Context) {
         }
     }
 
-    /**
-     * Guarda el array de versiones en SharedPreferences.
-     */
     private fun saveToCache(versionsArray: org.json.JSONArray) {
         try {
             val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -115,9 +96,6 @@ class VersionManager(private val filesDir: File, private val context: Context) {
         }
     }
 
-    /**
-     * Descarga una versión específica de Minecraft (JSON del manifiesto + JAR del cliente).
-     */
     suspend fun downloadVersion(versionId: String, onStatus: (String) -> Unit) = withContext(Dispatchers.IO) {
         try {
             onStatus("CONNECTING_CORE...")

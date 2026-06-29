@@ -1,6 +1,8 @@
 package com.miempresa.mclauncher
 
 import android.content.Context
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,7 +23,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -218,7 +224,8 @@ fun VersionsScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = CyberDark,
+        containerColor = Color.Transparent,
+        modifier = Modifier.background(Brush.verticalGradient(listOf(CyberDark, CyberSurface))),
         topBar = {
             TopAppBar(
                 title = {
@@ -231,7 +238,7 @@ fun VersionsScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = CyberDark,
+                    containerColor = Color.Transparent,
                     titleContentColor = NeonGreen
                 ),
                 actions = {
@@ -410,52 +417,62 @@ fun VersionGridCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(4.dp), clip = false)
             .clickable { onCardClick() },
         colors = CardDefaults.cardColors(
-            containerColor = if (isInstalled) CyberPanel else CyberSurface
+            containerColor = Color.White.copy(alpha = 0.08f)
         ),
         border = BorderStroke(
             1.dp,
-            if (isInstalled) NeonGreen.copy(alpha = 0.8f) else accent.copy(alpha = 0.3f)
+            Color.White.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(4.dp)
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .graphicsLayer {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        renderEffect = RenderEffect.createBlurEffect(8f, 8f, Shader.TileMode.MIRROR).asComposeRenderEffect()
+                    }
+                }
         ) {
-            Text(
-                text = versionId,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = versionType.uppercase(),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Black,
-                color = accent,
-                letterSpacing = 1.sp
-            )
-            if (isInstalled) {
+            Column(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = versionId,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.CheckCircle,
-                        contentDescription = "Instalado",
-                        tint = NeonGreen,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "INSTALADO",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black,
-                        color = NeonGreen
-                    )
+                Text(
+                    text = versionType.uppercase(),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                    color = accent,
+                    letterSpacing = 1.sp
+                )
+                if (isInstalled) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = "Instalado",
+                            tint = NeonGreen,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "INSTALADO",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeonGreen
+                        )
+                    }
                 }
             }
         }
@@ -469,9 +486,16 @@ fun LaunchFooter(
     onLaunch: () -> Unit
 ) {
     Surface(
-        color = CyberSurface,
+        color = Color.White.copy(alpha = 0.05f),
         tonalElevation = 0.dp,
-        modifier = Modifier.height(72.dp)
+        modifier = Modifier
+            .height(72.dp)
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)))
+            .graphicsLayer {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    renderEffect = RenderEffect.createBlurEffect(8f, 8f, Shader.TileMode.MIRROR).asComposeRenderEffect()
+                }
+            }
     ) {
         Row(
             modifier = Modifier
