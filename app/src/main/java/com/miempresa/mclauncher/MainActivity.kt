@@ -804,64 +804,41 @@ fun AccountScreen(settingsManager: SettingsManager) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
-    val ram by viewModel.ramAllocation.collectAsState()
-    val isDevMode by viewModel.isDevMode.collectAsState()
-    val gamePath by viewModel.gamePath.collectAsState()
-
+fun ModsScreen() {
+    val mockMods = remember { listOf("Sodium-Fabric-1.20.1.jar", "Iris-Shaders-1.20.1.jar", "Lithium-Optimization.jar") }
     Scaffold(
         containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // SYSTEM_RUTAS", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
+                title = { Text("LucyMC // MODS_INJECTOR", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("MATRIZ DE ALMACENAMIENTO DE JUEGO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-            OutlinedTextField(value = gamePath, onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
-
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
-                Switch(
-                    checked = isDevMode,
-                    onCheckedChange = { viewModel.toggleDevMode() },
-                    colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen)
-                )
+                Text("ARCHIVOS .JAR EN /mods", fontSize = 11.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = CyberCyan), shape = RoundedCornerShape(1.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                    Text("ADD_MOD", fontSize = 10.sp, color = CyberDark, fontWeight = FontWeight.Black)
+                }
             }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = CyberSurface),
-                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        "ASIGNACIÓN LÍMITE DE RAM JVM (-Xmx)",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        color = CyberCyan
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${ram.toInt()} MB ALLOCATED",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = NeonGreen
-                    )
-                    Slider(
-                        value = ram,
-                        onValueChange = viewModel::setRamAllocation,
-                        valueRange = 1024f..8192f,
-                        steps = 7,
-                        colors = SliderDefaults.colors(
-                            thumbColor = NeonGreen,
-                            activeTrackColor = NeonGreen,
-                            inactiveTrackColor = CyberSurface
-                        )
-                    )
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(mockMods) { mod ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = CyberSurface),
+                        border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(mod, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                            Text("LOADED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = NeonGreen)
+                        }
+                    }
                 }
             }
         }
