@@ -354,7 +354,7 @@ fun AccountScreen() {
                 Column(modifier = Modifier.padding(16.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(imageVector = Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.size(48.dp), tint = if (isLoggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = activeUser.uppercase(), mountaineer = null, fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                     Text(text = "ACCESO: $sessionType", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isLoggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
                     if (isLoggedIn) {
                         Spacer(modifier = Modifier.height(8.dp))
