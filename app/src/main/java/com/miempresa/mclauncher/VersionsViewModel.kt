@@ -100,8 +100,6 @@ class VersionsViewModel(
         _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
-    // ---- FUNCIONES CORREGIDAS CON viewModelScope.launch ----
-
     fun selectVersion(versionId: String) {
         viewModelScope.launch {
             if (isVersionInstalled(versionId)) {
