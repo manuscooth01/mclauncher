@@ -519,6 +519,7 @@ fun LaunchFooter(
 }
 
 // ----- COMPONENTE: BOTTOM SHEET DE LOADER -----
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoaderSelectionSheet(
     versionSelection: VersionSelection,
