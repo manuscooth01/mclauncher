@@ -1,8 +1,6 @@
 package com.miempresa.mclauncher
 
 import android.content.Context
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,8 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -428,51 +424,42 @@ fun VersionGridCard(
         ),
         shape = RoundedCornerShape(4.dp)
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .graphicsLayer {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        renderEffect = RenderEffect.createBlurEffect(8f, 8f, Shader.TileMode.MIRROR).asComposeRenderEffect()
-                    }
-                }
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(12.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = versionId,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+            Text(
+                text = versionId,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = versionType.uppercase(),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Black,
+                color = accent,
+                letterSpacing = 1.sp
+            )
+            if (isInstalled) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = versionType.uppercase(),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                    color = accent,
-                    letterSpacing = 1.sp
-                )
-                if (isInstalled) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.CheckCircle,
-                            contentDescription = "Instalado",
-                            tint = NeonGreen,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "INSTALADO",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Black,
-                            color = NeonGreen
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Instalado",
+                        tint = NeonGreen,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "INSTALADO",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = NeonGreen
+                    )
                 }
             }
         }
@@ -486,16 +473,13 @@ fun LaunchFooter(
     onLaunch: () -> Unit
 ) {
     Surface(
-        color = Color.White.copy(alpha = 0.05f),
+        color = Color.White.copy(alpha = 0.08f),
         tonalElevation = 0.dp,
+        shape = RoundedCornerShape(4.dp),
         modifier = Modifier
             .height(72.dp)
-            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)))
-            .graphicsLayer {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    renderEffect = RenderEffect.createBlurEffect(8f, 8f, Shader.TileMode.MIRROR).asComposeRenderEffect()
-                }
-            }
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(4.dp), clip = false)
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)), shape = RoundedCornerShape(4.dp))
     ) {
         Row(
             modifier = Modifier
