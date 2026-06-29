@@ -29,7 +29,6 @@ import com.miempresa.mclauncher.ui.theme.LucyMcTheme
 import kotlinx.coroutines.launch
 import java.io.File
 
-// PALETA CRÍTICA CYBERPUNK
 val NeonGreen = Color(0xFF00FF9F)
 val CyberCyan = Color(0xFF00B8FF)
 val CyberDark = Color(0xFF0A0B10)
@@ -56,6 +55,7 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val settingsManager = remember(context) { SettingsManager(context) }
 
     val navItems = remember {
         listOf(
@@ -107,18 +107,15 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
                 composable("versiones") { VersionsScreen(filesDir = filesDir, context = context) }
                 composable("perfiles") { ProfilesScreen() }
                 composable("mods") { ModsScreen() }
-                composable("cuenta") { AccountScreen() }
-                composable("ajustes") { SettingsScreen() }
-                composable("hardware") { HardwareScreen() }
+                composable("cuenta") { AccountScreen(settingsManager) }
+                composable("ajustes") { SettingsScreen(settingsManager) }
+                composable("hardware") { HardwareScreen(settingsManager) }
                 composable("servidores") { ServersScreen() }
             }
         }
     }
 }
 
-// ==========================================
-// 1. GESTOR DE VERSIONES (usa VersionManager)
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionsScreen(filesDir: File, context: Context) {
@@ -131,39 +128,28 @@ fun VersionsScreen(filesDir: File, context: Context) {
     var status by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        // Intentar cargar desde caché primero
         val cachedVersions = versionManager.loadFromCache()
         if (cachedVersions != null) {
             versions = cachedVersions
             isLoading = false
         }
 
-        // Verificar conexión a internet
         if (!versionManager.isInternetAvailable()) {
             if (versions.isEmpty()) {
-                scope.launch {
-                    snackbarHostState.showSnackbar("No hay conexión a internet y no hay datos en caché disponibles.")
-                }
+                scope.launch { snackbarHostState.showSnackbar("No hay conexión a internet y no hay datos en caché disponibles.") }
             } else {
-                scope.launch {
-                    snackbarHostState.showSnackbar("Mostrando datos de la caché. Conéctate a internet para actualizar.")
-                }
+                scope.launch { snackbarHostState.showSnackbar("Mostrando datos de la caché. Conéctate a internet para actualizar.") }
             }
             return@LaunchedEffect
         }
 
-        // Cargar versiones desde la red
         val result = versionManager.fetchVersions()
         result.onSuccess { list ->
             versions = list
             isLoading = false
         }.onFailure {
-            if (versions.isEmpty()) {
-                isLoading = false
-            }
-            scope.launch {
-                snackbarHostState.showSnackbar("Error al cargar las versiones. Mostrando caché.")
-            }
+            if (versions.isEmpty()) isLoading = false
+            scope.launch { snackbarHostState.showSnackbar("Error al cargar las versiones. Mostrando caché.") }
         }
     }
 
@@ -186,17 +172,11 @@ fun VersionsScreen(filesDir: File, context: Context) {
                 LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(versions, key = { it.first }) { (id, type) ->
                         VersionCard(id, type) {
-                            // Verificar conexión antes de descargar
                             if (!versionManager.isInternetAvailable()) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("No hay conexión a internet. Por favor, verifica tu conexión.")
-                                }
+                                scope.launch { snackbarHostState.showSnackbar("No hay conexión a internet. Por favor, verifica tu conexión.") }
                                 return@VersionCard
                             }
-
-                            scope.launch {
-                                versionManager.downloadVersion(id) { msg -> status = msg }
-                            }
+                            scope.launch { versionManager.downloadVersion(id) { msg -> status = msg } }
                         }
                     }
                 }
@@ -234,9 +214,6 @@ fun VersionCard(versionId: String, versionType: String, onDownload: () -> Unit) 
     }
 }
 
-// ==========================================
-// 2. PERFILES (DISEÑO BI-PANEL)
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfilesScreen() {
@@ -275,9 +252,6 @@ fun ProfilesScreen() {
     }
 }
 
-// ==========================================
-// 3. INYECTOR DE MODS
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModsScreen() {
@@ -313,16 +287,13 @@ fun ModsScreen() {
     }
 }
 
-// ==========================================
-// 4. IDENTIDAD DE CUENTA
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountScreen() {
+fun AccountScreen(settingsManager: SettingsManager) {
     var usernameInput by remember { mutableStateOf("") }
-    var isLoggedIn by remember { mutableStateOf(false) }
-    var activeUser by remember { mutableStateOf("INVITADO_X") }
-    var sessionType by remember { mutableStateOf("NOT_FOUND") }
+    var activeUser by remember { mutableStateOf(settingsManager.getActiveUser()) }
+    var sessionType by remember { mutableStateOf(settingsManager.getSessionType()) }
+    var isLoggedIn by remember { mutableStateOf(settingsManager.isLoggedIn()) }
 
     Scaffold(
         containerColor = CyberDark,
@@ -345,12 +316,49 @@ fun AccountScreen() {
             Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("AUTENTICAR LOG", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-                    OutlinedTextField(value = usernameInput, onValueChange = { usernameInput = it }, label = { Text("ALIAS") }, modifier = Modifier.fillMaxWidth().height(48.dp), singleLine = true)
+                    OutlinedTextField(
+                        value = usernameInput,
+                        onValueChange = { usernameInput = it },
+                        label = { Text("ALIAS") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Button(onClick = { if (usernameInput.isNotBlank()) { activeUser = usernameInput; sessionType = "LOCAL"; isLoggedIn = true; usernameInput = "" } }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan), shape = RoundedCornerShape(1.dp)) {
+                        Button(
+                            onClick = { 
+                                if (usernameInput.isNotBlank()) { 
+                                    settingsManager.setActiveUser(usernameInput)
+                                    settingsManager.setSessionType("LOCAL")
+                                    settingsManager.setLoggedIn(true)
+                                    activeUser = usernameInput
+                                    sessionType = "LOCAL"
+                                    isLoggedIn = true
+                                    usernameInput = "" 
+                                } 
+                            }, 
+                            modifier = Modifier.weight(1f), 
+                            colors = ButtonDefaults.buttonColors(containerColor = CyberSurface), 
+                            border = BorderStroke(1.dp, CyberCyan), 
+                            shape = RoundedCornerShape(1.dp)
+                        ) {
                             Text("LOCAL", fontSize = 9.sp, color = CyberCyan)
                         }
-                        Button(onClick = { if (usernameInput.isNotBlank()) { activeUser = usernameInput; sessionType = "MICROSOFT"; isLoggedIn = true; usernameInput = "" } }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), shape = RoundedCornerShape(1.dp)) {
+                        Button(
+                            onClick = { 
+                                if (usernameInput.isNotBlank()) { 
+                                    settingsManager.setActiveUser(usernameInput)
+                                    settingsManager.setSessionType("MICROSOFT")
+                                    settingsManager.setLoggedIn(true)
+                                    activeUser = usernameInput
+                                    sessionType = "MICROSOFT"
+                                    isLoggedIn = true
+                                    usernameInput = "" 
+                                } 
+                            }, 
+                            modifier = Modifier.weight(1f), 
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), 
+                            shape = RoundedCornerShape(1.dp)
+                        ) {
                             Text("MS_LOGIN", fontSize = 9.sp, color = CyberDark, fontWeight = FontWeight.Black)
                         }
                     }
@@ -360,12 +368,12 @@ fun AccountScreen() {
     }
 }
 
-// ==========================================
-// 5. AJUSTES
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(settingsManager: SettingsManager) {
+    var gamePath by remember { mutableStateOf(settingsManager.getGamePath()) }
+    var isDevMode by remember { mutableStateOf(settingsManager.isDeveloperMode()) }
+
     Scaffold(
         containerColor = CyberDark,
         topBar = {
@@ -377,22 +385,26 @@ fun SettingsScreen() {
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("MATRIZ DE ALMACENAMIENTO DE JUEGO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-            OutlinedTextField(value = "/data/data/com.termux/files/home/.minecraft", onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
+            OutlinedTextField(value = gamePath, onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
-                Switch(checked = true, onCheckedChange = {}, colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen))
+                Switch(
+                    checked = isDevMode, 
+                    onCheckedChange = { 
+                        isDevMode = it
+                        settingsManager.setDeveloperMode(it)
+                    }, 
+                    colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen)
+                )
             }
         }
     }
 }
 
-// ==========================================
-// 6. ASIGNACIÓN HARDWARE
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HardwareScreen() {
-    var ramAllocation by remember { mutableStateOf(3072f) }
+fun HardwareScreen(settingsManager: SettingsManager) {
+    var ramAllocation by remember { mutableStateOf(settingsManager.getRamAllocation().toFloat()) }
     Scaffold(
         containerColor = CyberDark,
         topBar = {
@@ -409,7 +421,11 @@ fun HardwareScreen() {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "${ramAllocation.toInt()} MB ALLOCATED", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                     Slider(
-                        value = ramAllocation, onValueChange = { ramAllocation = it }, valueRange = 1024f..8192f, steps = 7,
+                        value = ramAllocation, 
+                        onValueChange = { ramAllocation = it }, 
+                        valueRange = 1024f..8192f, 
+                        steps = 7,
+                        onValueChangeFinished = { settingsManager.setRamAllocation(ramAllocation.toInt()) },
                         colors = SliderDefaults.colors(thumbColor = NeonGreen, activeTrackColor = NeonGreen, inactiveTrackColor = CyberSurface)
                     )
                 }
@@ -418,9 +434,6 @@ fun HardwareScreen() {
     }
 }
 
-// ==========================================
-// 7. MATRIX SERVERS
-// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServersScreen() {
