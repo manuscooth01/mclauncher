@@ -1,11 +1,11 @@
 package com.miempresa.mclauncher
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,18 +26,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.miempresa.mclauncher.ui.theme.LucyMcTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.File
-import java.io.FileWriter
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
 
-// PALETA CRÍTICA CYBERPUNK PARA EVITAR TONOS GRISES GENÉRICOS
+// PALETA CRÍTICA CYBERPUNK
 val NeonGreen = Color(0xFF00FF9F)
 val CyberCyan = Color(0xFF00B8FF)
 val CyberDark = Color(0xFF0A0B10)
@@ -50,7 +42,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             LucyMcTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = CyberDark) {
-                    MainNavigationContainer(filesDir = filesDir)
+                    MainNavigationContainer(filesDir = filesDir, context = this)
                 }
             }
         }
@@ -60,7 +52,7 @@ class MainActivity : ComponentActivity() {
 data class NavigationItem(val route: String, val label: String, val icon: ImageVector)
 
 @Composable
-fun MainNavigationContainer(filesDir: File) {
+fun MainNavigationContainer(filesDir: File, context: Context) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -78,7 +70,6 @@ fun MainNavigationContainer(filesDir: File) {
     }
 
     Row(modifier = Modifier.fillMaxSize().background(CyberDark)) {
-        // BARRA LATERAL TÁCTICA MEJORADA
         NavigationRail(
             containerColor = CyberSurface,
             modifier = Modifier.fillMaxHeight().width(90.dp).padding(end = 2.dp)
@@ -111,10 +102,9 @@ fun MainNavigationContainer(filesDir: File) {
             }
         }
 
-        // VISOR CENTRAL DE MATRIZ
         Box(modifier = Modifier.fillMaxSize().weight(1f).background(CyberDark)) {
             NavHost(navController = navController, startDestination = "versiones") {
-                composable("versiones") { VersionsScreen(filesDir) }
+                composable("versiones") { VersionsScreen(filesDir = filesDir, context = context) }
                 composable("perfiles") { ProfilesScreen() }
                 composable("mods") { ModsScreen() }
                 composable("cuenta") { AccountScreen() }
@@ -127,49 +117,58 @@ fun MainNavigationContainer(filesDir: File) {
 }
 
 // ==========================================
-// 1. GESTOR DE VERSIONES (OPTIMIZADO Y NEÓN)
+// 1. GESTOR DE VERSIONES (usa VersionManager)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VersionsScreen(filesDir: File) {
+fun VersionsScreen(filesDir: File, context: Context) {
+    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val versionManager = remember(filesDir, context) { VersionManager(filesDir, context) }
+
     var versions by remember { mutableStateOf(listOf<Pair<String, String>>()) }
     var isLoading by remember { mutableStateOf(true) }
     var status by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val url = URL("https://launchermeta.mojang.com/mc/game/version_manifest.json")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 8000
-                val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                val sb = StringBuilder()
-                var line: String?
-                while (reader.readLine().also { line = it } != null) sb.append(line)
-                reader.close()
+        // Intentar cargar desde caché primero
+        val cachedVersions = versionManager.loadFromCache()
+        if (cachedVersions != null) {
+            versions = cachedVersions
+            isLoading = false
+        }
 
-                val manifest = JSONObject(sb.toString())
-                val versionsArray = manifest.getJSONArray("versions")
-                val list = mutableListOf<Pair<String, String>>()
-                for (i in 0 until minOf(versionsArray.length(), 40)) { // Filtro de optimización inicial
-                    val v = versionsArray.getJSONObject(i)
-                    list.add(v.getString("id") to v.getString("type"))
+        // Verificar conexión a internet
+        if (!versionManager.isInternetAvailable()) {
+            if (versions.isEmpty()) {
+                scope.launch {
+                    snackbarHostState.showSnackbar("No hay conexión a internet y no hay datos en caché disponibles.")
                 }
-                withContext(Dispatchers.Main) {
-                    versions = list
-                    isLoading = false
+            } else {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Mostrando datos de la caché. Conéctate a internet para actualizar.")
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    status = "ERROR_CONEXIÓN_NÚCLEO"
-                    isLoading = false
-                }
+            }
+            return@LaunchedEffect
+        }
+
+        // Cargar versiones desde la red
+        val result = versionManager.fetchVersions()
+        result.onSuccess { list ->
+            versions = list
+            isLoading = false
+        }.onFailure {
+            if (versions.isEmpty()) {
+                isLoading = false
+            }
+            scope.launch {
+                snackbarHostState.showSnackbar("Error al cargar las versiones. Mostrando caché.")
             }
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = CyberDark,
         topBar = {
             TopAppBar(
@@ -187,12 +186,23 @@ fun VersionsScreen(filesDir: File) {
                 LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(versions, key = { it.first }) { (id, type) ->
                         VersionCard(id, type) {
-                            scope.launch(Dispatchers.IO) {
-                                downloadVersion(filesDir, id, type) { msg -> status = msg }
+                            // Verificar conexión antes de descargar
+                            if (!versionManager.isInternetAvailable()) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("No hay conexión a internet. Por favor, verifica tu conexión.")
+                                }
+                                return@VersionCard
+                            }
+
+                            scope.launch {
+                                versionManager.downloadVersion(id) { msg -> status = msg }
                             }
                         }
                     }
                 }
+            }
+            if (status.isNotEmpty()) {
+                Text(status, fontSize = 10.sp, color = NeonGreen, modifier = Modifier.padding(vertical = 4.dp))
             }
         }
     }
@@ -225,7 +235,7 @@ fun VersionCard(versionId: String, versionType: String, onDownload: () -> Unit) 
 }
 
 // ==========================================
-// 2. PERFILES (DISEÑO HORIZONTAL BI-PANEL)
+// 2. PERFILES (DISEÑO BI-PANEL)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -266,7 +276,7 @@ fun ProfilesScreen() {
 }
 
 // ==========================================
-// 3. INYECTOR DE MODS (.JAR DETECTADOS)
+// 3. INYECTOR DE MODS
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -304,7 +314,7 @@ fun ModsScreen() {
 }
 
 // ==========================================
-// 4. IDENTIDAD DE CUENTA (ELIMINADO FANTASMA)
+// 4. IDENTIDAD DE CUENTA
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -351,7 +361,7 @@ fun AccountScreen() {
 }
 
 // ==========================================
-// 5. AJUSTES (RUTAS FIJAS DE CONFIGURACIÓN)
+// 5. AJUSTES
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -377,7 +387,7 @@ fun SettingsScreen() {
 }
 
 // ==========================================
-// 6. ASIGNACIÓN HARDWARE (JVM TUNING SLIDER)
+// 6. ASIGNACIÓN HARDWARE
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -409,7 +419,7 @@ fun HardwareScreen() {
 }
 
 // ==========================================
-// 7. MATRIX SERVERS (LISTA DE ENLACE)
+// 7. MATRIX SERVERS
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -442,54 +452,5 @@ fun ServersScreen() {
                 }
             }
         }
-    }
-}
-
-// ==========================================
-// DESCARGADOR DE BINARIOS COMPLETO (NATIVO)
-// ==========================================
-suspend fun downloadVersion(filesDir: File, versionId: String, versionType: String, onStatus: (String) -> Unit) {
-    try {
-        onStatus("CONNECTING_CORE...")
-        val manifestUrl = URL("https://launchermeta.mojang.com/mc/game/version_manifest.json")
-        val conn = manifestUrl.openConnection() as HttpURLConnection
-        val reader = BufferedReader(InputStreamReader(conn.inputStream))
-        val sb = StringBuilder()
-        var line: String?
-        while (reader.readLine().also { line = it } != null) sb.append(line)
-        reader.close()
-
-        val manifest = JSONObject(sb.toString())
-        val versions = manifest.getJSONArray("versions")
-        var versionUrl = ""
-        for (i in 0 until versions.length()) {
-            val v = versions.getJSONObject(i)
-            if (v.getString("id") == versionId) {
-                versionUrl = v.getString("url")
-                break
-            }
-        }
-        if (versionUrl.isEmpty()) { onStatus("ERR_URL_NOT_FOUND"); return }
-
-        val vConn = URL(versionUrl).openConnection() as HttpURLConnection
-        val vReader = BufferedReader(InputStreamReader(vConn.inputStream))
-        val vSb = StringBuilder()
-        while (vReader.readLine().also { line = it } != null) vSb.append(line)
-        vReader.close()
-
-        val versionJson = vSb.toString()
-        val dir = File(filesDir, "versions/$versionId")
-        if (!dir.exists()) dir.mkdirs()
-        FileWriter(File(dir, "$versionId.json")).use { it.write(versionJson) }
-
-        val downloads = JSONObject(versionJson).getJSONObject("downloads")
-        val client = downloads.getJSONObject("client")
-        val clientUrl = client.getString("url")
-
-        val jarFile = File(dir, "$versionId.jar")
-        URL(clientUrl).openStream().use { input -> jarFile.outputStream().use { output -> input.copyTo(output) } }
-        onStatus("✅ MATRIX_$versionId_ONLINE")
-    } catch (e: Exception) {
-        onStatus("❌ CORE_FETCH_FAILURE")
     }
 }
