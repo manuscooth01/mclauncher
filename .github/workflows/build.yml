@@ -9,7 +9,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y imagemagick
-      - run: mkdir -p app/src/main/res/mipmap-mdpi && mkdir -p app/src/main/res/mipmap-hdpi && mkdir -p app/src/main/res/mipmap-xhdpi && mkdir -p app/src/main/res/mipmap-xxhdpi && mkdir -p app/src/main/res/mipmap-xxxhdpi && ls -la && convert icon_original.png -resize 48x48 app/src/main/res/mipmap-mdpi/ic_launcher.png && convert icon_original.png -resize 72x72 app/src/main/res/mipmap-hdpi/ic_launcher.png && convert icon_original.png -resize 96x96 app/src/main/res/mipmap-xhdpi/ic_launcher.png && convert icon_original.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png && convert icon_original.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+      - run: ls -la
+      - run: mkdir -p app/src/main/res/mipmap-mdpi app/src/main/res/mipmap-hdpi app/src/main/res/mipmap-xhdpi app/src/main/res/mipmap-xxhdpi app/src/main/res/mipmap-xxxhdpi
+      - run: convert icon_original.png -resize 48x48 app/src/main/res/mipmap-mdpi/ic_launcher.png
+      - run: convert icon_original.png -resize 72x72 app/src/main/res/mipmap-hdpi/ic_launcher.png
+      - run: convert icon_original.png -resize 96x96 app/src/main/res/mipmap-xhdpi/ic_launcher.png
+      - run: convert icon_original.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+      - run: convert icon_original.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
