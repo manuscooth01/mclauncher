@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,19 +20,27 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.miempresa.mclauncher.ui.theme.LucyMcTheme
+import androidx.navigation.navArgument
+import com.miempresa.mclauncher.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
-val NeonGreen = Color(0xFF00FF9F)
-val CyberCyan = Color(0xFF00B8FF)
-val CyberDark = Color(0xFF0A0B10)
-val CyberSurface = Color(0xFF12131C)
-val CyberPanel = Color(0xFF1A1C28)
+// ---------- RUTAS TIPADAS ----------
+sealed class Screen(val route: String) {
+    object Versions : Screen("versiones")
+    object Modpacks : Screen("modpacks")
+    object Mods : Screen("mods")
+    object Account : Screen("cuenta")
+    object Settings : Screen("ajustes")
+}
+
+data class NavigationItem(val screen: Screen, val label: String, val icon: ImageVector)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,129 +55,158 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class NavigationItem(val route: String, val label: String, val icon: ImageVector)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainNavigationContainer(filesDir: File, context: Context) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Managers y ViewModels
     val settingsManager = remember(context) { SettingsManager(context) }
+    val versionManager = remember(filesDir, context) { VersionManager(filesDir, context) }
 
-    val navItems = remember {
-        listOf(
-            NavigationItem("versiones", "VERSIONS", Icons.Filled.List),
-            NavigationItem("perfiles", "PROFILES", Icons.Filled.AccountBox),
-            NavigationItem("mods", "MODS", Icons.Filled.Star),
-            NavigationItem("cuenta", "ACCOUNT", Icons.Filled.Lock),
-            NavigationItem("ajustes", "SETTINGS", Icons.Filled.Settings),
-            NavigationItem("hardware", "HARDWARE", Icons.Filled.Build),
-            NavigationItem("servidores", "SERVERS", Icons.Filled.Home)
-        )
-    }
+    val versionsViewModel: VersionsViewModel = viewModel(
+        factory = VersionsViewModelFactory(versionManager)
+    )
+    val settingsViewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModelFactory(settingsManager)
+    )
 
-    Row(modifier = Modifier.fillMaxSize().background(CyberDark)) {
-        NavigationRail(
-            containerColor = CyberSurface,
-            modifier = Modifier.fillMaxHeight().width(90.dp).padding(end = 2.dp)
-        ) {
-            Spacer(modifier = Modifier.height(12.dp))
-            navItems.forEach { item ->
-                val isSelected = currentRoute == item.route
-                NavigationRailItem(
-                    selected = isSelected,
-                    onClick = {
-                        if (currentRoute != item.route) {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+    // Lista de navegación (5 ítems)
+    val navItems = listOf(
+        NavigationItem(Screen.Versions, "VERSIONES", Icons.Filled.List),
+        NavigationItem(Screen.Moddpacks, "MODPACKS", Icons.Filled.Folder),
+        NavigationItem(Screen.Mods, "MODS", Icons.Filled.Extension),
+        NavigationItem(Screen.Account, "CUENTA", Icons.Filled.Person),
+        NavigationItem(Screen.Settings, "AJUSTES", Icons.Filled.Settings)
+    )
+
+    Scaffold(
+        containerColor = CyberDark,
+        bottomBar = {
+            NavigationBar(
+                containerColor = CyberSurface,
+                tonalElevation = 0.dp,
+                modifier = Modifier.height(64.dp)
+            ) {
+                navItems.forEach { item ->
+                    val isSelected = currentRoute == item.screen.route
+                    NavigationBarItem(
+                        selected = isSelected,
+                        onClick = {
+                            if (currentRoute != item.screen.route) {
+                                navController.navigate(item.screen.route) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
-                        }
-                    },
-                    icon = { Icon(imageVector = item.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                    label = { Text(text = item.label, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp) },
-                    colors = NavigationRailItemDefaults.colors(
-                        selectedIconColor = CyberDark,
-                        selectedTextColor = NeonGreen,
-                        indicatorColor = NeonGreen,
-                        unselectedIconColor = CyberCyan.copy(alpha = 0.5f),
-                        unselectedTextColor = CyberCyan.copy(alpha = 0.4f)
-                    ),
-                    modifier = Modifier.padding(vertical = 2.dp)
-                )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = item.label,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.5.sp
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = NeonGreen,
+                            selectedTextColor = NeonGreen,
+                            unselectedIconColor = CyberCyan.copy(alpha = 0.5f),
+                            unselectedTextColor = CyberCyan.copy(alpha = 0.4f),
+                            indicatorColor = NeonGreen.copy(alpha = 0.15f)
+                        )
+                    )
+                }
             }
         }
-
-        Box(modifier = Modifier.fillMaxSize().weight(1f).background(CyberDark)) {
-            NavHost(navController = navController, startDestination = "versiones") {
-                composable("versiones") { VersionsScreen(filesDir = filesDir, context = context) }
-                composable("perfiles") { ProfilesScreen() }
-                composable("mods") { ModsScreen() }
-                composable("cuenta") { AccountScreen(settingsManager) }
-                composable("ajustes") { SettingsScreen(settingsManager) }
-                composable("hardware") { HardwareScreen(settingsManager) }
-                composable("servidores") { ServersScreen() }
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Versions.route
+            ) {
+                composable(Screen.Versions.route) {
+                    VersionsScreen(
+                        viewModel = versionsViewModel,
+                        snackbarHostState = remember { SnackbarHostState() }
+                    )
+                }
+                composable(Screen.Moddpacks.route) { ModpacksScreen() }
+                composable(Screen.Mods.route) { ModsScreen() }
+                composable(Screen.Account.route) { AccountScreen(settingsManager) }
+                composable(Screen.Settings.route) {
+                    SettingsScreen(viewModel = settingsViewModel)
+                }
             }
         }
     }
 }
 
+// ---------- FACTORIES PARA VIEWMODEL (sin Hilt) ----------
+class VersionsViewModelFactory(private val versionManager: VersionManager) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(VersionsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return VersionsViewModel(versionManager) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+class SettingsViewModelFactory(private val settingsManager: SettingsManager) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return SettingsViewModel(settingsManager) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+// ---------- PANTALLA VERSIONES (con ViewModel) ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VersionsScreen(filesDir: File, context: Context) {
-    val snackbarHostState = remember { SnackbarHostState() }
+fun VersionsScreen(
+    viewModel: VersionsViewModel,
+    snackbarHostState: SnackbarHostState
+) {
+    val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
-    val versionManager = remember(filesDir, context) { VersionManager(filesDir, context) }
 
-    var versions by remember { mutableStateOf(listOf<Pair<String, String>>()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var status by remember { mutableStateOf("") }
-    
-    // Estados para el motor de búsqueda y filtros rápidos
-    var selectedFilter by remember { mutableStateOf("ALL") }
-    var searchQuery by remember { mutableStateOf("") }
-
+    // Escuchar efectos (snackbars)
     LaunchedEffect(Unit) {
-        val cachedVersions = versionManager.loadFromCache()
-        if (cachedVersions != null) {
-            versions = cachedVersions
-            isLoading = false
-        }
-
-        if (!versionManager.isInternetAvailable()) {
-            if (versions.isEmpty()) {
-                scope.launch { snackbarHostState.showSnackbar("No hay conexión a internet y no hay datos en caché disponibles.") }
-            } else {
-                scope.launch { snackbarHostState.showSnackbar("Mostrando datos de la caché. Conéctate a internet para actualizar.") }
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is VersionsEffect.ShowSnackbar -> {
+                    scope.launch { snackbarHostState.showSnackbar(effect.message) }
+                }
             }
-            return@LaunchedEffect
-        }
-
-        val result = versionManager.fetchVersions()
-        result.onSuccess { list ->
-            versions = list
-            isLoading = false
-        }.onFailure {
-            if (versions.isEmpty()) isLoading = false
-            scope.launch { snackbarHostState.showSnackbar("Error al cargar las versiones. Mostrando caché.") }
         }
     }
 
-    // Filtrado, búsqueda y ordenamiento cronológico inverso en tiempo real
-    val filteredVersions = remember(versions, selectedFilter, searchQuery) {
-        var resultList = when (selectedFilter) {
-            "RELEASES" -> versions.filter { it.second == "release" }
-            "SNAPSHOTS" -> versions.filter { it.second == "snapshot" }
-            else -> versions
+    // Versiones filtradas y ordenadas
+    val filteredVersions = remember(uiState.versions, uiState.selectedFilter, uiState.searchQuery) {
+        var list = when (uiState.selectedFilter) {
+            "RELEASES" -> uiState.versions.filter { it.second == "release" }
+            "SNAPSHOTS" -> uiState.versions.filter { it.second == "snapshot" }
+            else -> uiState.versions
         }
-
-        if (searchQuery.isNotBlank()) {
-            resultList = resultList.filter { it.first.contains(searchQuery, ignoreCase = true) }
+        if (uiState.searchQuery.isNotBlank()) {
+            list = list.filter { it.first.contains(uiState.searchQuery, ignoreCase = true) }
         }
-
-        // Ordenar de forma descendente para mantener las versiones más nuevas arriba
-        resultList.sortedByDescending { it.first }
+        list.sortedByDescending { it.first }
     }
 
     Scaffold(
@@ -184,18 +220,17 @@ fun VersionsScreen(filesDir: File, context: Context) {
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
-            
-            if (!isLoading) {
-                // INPUT DE BÚSQUEDA CYBERPUNK CON LUPA
+            // Barra de búsqueda (visible solo si no está cargando)
+            if (!uiState.isLoading) {
                 OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::updateSearchQuery,
                     placeholder = { Text("BUSCAR VERSIÓN...", color = CyberCyan.copy(alpha = 0.4f), fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    leadingIcon = { Icon(imageVector = Icons.Filled.Search, contentDescription = "Buscar", tint = CyberCyan, modifier = Modifier.size(18.dp)) },
+                    leadingIcon = { Icon(Icons.Filled.Search, null, tint = CyberCyan, modifier = Modifier.size(18.dp)) },
                     trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(imageVector = Icons.Filled.Clear, contentDescription = "Limpiar", tint = NeonGreen, modifier = Modifier.size(16.dp))
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                Icon(Icons.Filled.Clear, null, tint = NeonGreen, modifier = Modifier.size(16.dp))
                             }
                         }
                     },
@@ -212,35 +247,33 @@ fun VersionsScreen(filesDir: File, context: Context) {
                     singleLine = true
                 )
 
-                // PESTAÑAS / BOTONES DE FILTRO RÁPIDO
+                // Filtros rápidos
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    val filterOptions = listOf("ALL", "RELEASES", "SNAPSHOTS")
-                    filterOptions.forEach { option ->
-                        val isSelected = selectedFilter == option
-                        val buttonAccent = when (option) {
+                    listOf("ALL", "RELEASES", "SNAPSHOTS").forEach { option ->
+                        val isSelected = uiState.selectedFilter == option
+                        val accent = when (option) {
                             "RELEASES" -> NeonGreen
                             "SNAPSHOTS" -> CyberCyan
                             else -> Color.White
                         }
-
                         Button(
-                            onClick = { selectedFilter = option },
+                            onClick = { viewModel.updateFilter(option) },
                             modifier = Modifier.weight(1f).height(32.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) buttonAccent else CyberSurface
+                                containerColor = if (isSelected) accent else CyberSurface
                             ),
                             shape = RoundedCornerShape(1.dp),
-                            border = BorderStroke(1.dp, if (isSelected) buttonAccent else buttonAccent.copy(alpha = 0.2f)),
+                            border = BorderStroke(1.dp, if (isSelected) accent else accent.copy(alpha = 0.2f)),
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
                         ) {
                             Text(
                                 text = option,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
-                                color = if (isSelected) CyberDark else buttonAccent,
+                                color = if (isSelected) CyberDark else accent,
                                 letterSpacing = 0.5.sp
                             )
                         }
@@ -248,32 +281,55 @@ fun VersionsScreen(filesDir: File, context: Context) {
                 }
             }
 
-            if (isLoading) {
+            // Contenido principal
+            if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     items(filteredVersions, key = { it.first }) { (id, type) ->
-                        VersionCard(id, type) {
-                            if (!versionManager.isInternetAvailable()) {
-                                scope.launch { snackbarHostState.showSnackbar("No hay conexión a internet. Por favor, verifica tu conexión.") }
-                                return@VersionCard
-                            }
-                            scope.launch { versionManager.downloadVersion(id) { msg -> status = msg } }
-                        }
+                        VersionCard(
+                            versionId = id,
+                            versionType = type,
+                            onDownload = {
+                                if (!versionManager.isInternetAvailable()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("No hay conexión a internet.")
+                                    }
+                                } else {
+                                    viewModel.downloadVersion(id)
+                                }
+                            },
+                            isDownloading = uiState.downloading && uiState.downloadStatus.contains(id)
+                        )
                     }
                 }
             }
-            if (status.isNotEmpty()) {
-                Text(status, fontSize = 10.sp, color = NeonGreen, modifier = Modifier.padding(vertical = 4.dp))
+
+            // Estado de descarga
+            if (uiState.downloadStatus.isNotEmpty()) {
+                Text(
+                    text = uiState.downloadStatus,
+                    fontSize = 10.sp,
+                    color = NeonGreen,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-fun VersionCard(versionId: String, versionType: String, onDownload: () -> Unit) {
+fun VersionCard(
+    versionId: String,
+    versionType: String,
+    onDownload: () -> Unit,
+    isDownloading: Boolean
+) {
     val accent = if (versionType == "release") NeonGreen else CyberCyan
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -281,31 +337,44 @@ fun VersionCard(versionId: String, versionType: String, onDownload: () -> Unit) 
         border = BorderStroke(1.dp, accent.copy(alpha = 0.3f)),
         shape = RoundedCornerShape(2.dp)
     ) {
-        Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column {
                 Text(text = versionId, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 Text(text = versionType.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Black, color = accent, letterSpacing = 1.sp)
             }
             Button(
                 onClick = onDownload,
-                colors = ButtonDefaults.buttonColors(containerColor = accent),
+                enabled = !isDownloading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDownloading) CyberPanel else accent
+                ),
                 shape = RoundedCornerShape(1.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.4.dp)
             ) {
-                Text("FETCH_JAR", fontSize = 9.sp, fontWeight = FontWeight.Black, color = CyberDark)
+                Text(
+                    text = if (isDownloading) "DESCARGANDO..." else "FETCH_JAR",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isDownloading) CyberCyan else CyberDark
+                )
             }
         }
     }
 }
 
+// ---------- PANTALLA MODPACKS ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfilesScreen() {
+fun ModpacksScreen() {
     Scaffold(
         containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // INSTANCE_DIRECTOR", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                title = { Text("LucyMC // MODPACKS_ENGINE", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
             )
         }
@@ -313,7 +382,7 @@ fun ProfilesScreen() {
         Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("NÚCLEO ACTIVO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    Text("MODPACK ACTIVO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text("Fabric-Loader-1.20.1", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Text("ESTADO: EN LA LÍNEA", fontSize = 9.sp, color = NeonGreen)
@@ -321,14 +390,14 @@ fun ProfilesScreen() {
             }
             Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("INJECT NUEVO PERFIL", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
+                    Text("CREAR NUEVO MODPACK", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                     OutlinedTextField(
-                        value = "", onValueChange = {}, label = { Text("ALIAS PROD", color = CyberCyan.copy(alpha = 0.6f)) },
+                        value = "", onValueChange = {}, label = { Text("NOMBRE", color = CyberCyan.copy(alpha = 0.6f)) },
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonGreen, unfocusedBorderColor = CyberSurface),
                         modifier = Modifier.fillMaxWidth().height(48.dp), singleLine = true
                     )
                     Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(1.dp)) {
-                        Text("COMPILAR INSTANCIA", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                        Text("GENERAR MODPACK", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 11.sp)
                     }
                 }
             }
@@ -336,6 +405,7 @@ fun ProfilesScreen() {
     }
 }
 
+// ---------- PANTALLA MODS ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModsScreen() {
@@ -371,6 +441,7 @@ fun ModsScreen() {
     }
 }
 
+// ---------- PANTALLA CUENTA ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(settingsManager: SettingsManager) {
@@ -391,7 +462,7 @@ fun AccountScreen(settingsManager: SettingsManager) {
         Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, if (isLoggedIn) NeonGreen.copy(alpha = 0.4f) else CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(imageVector = Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp), tint = if (isLoggedIn) NeonGreen else CyberCyan.copy(alpha = 0.3f))
+                    Icon(Icons.Filled.AccountCircle, null, modifier = Modifier.size(40.dp), tint = if (isLoggedIn) NeonGreen else CyberCyan.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.White)
                     Text(text = "AUTH: $sessionType", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isLoggedIn) NeonGreen else CyberCyan)
@@ -409,38 +480,38 @@ fun AccountScreen(settingsManager: SettingsManager) {
                     )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Button(
-                            onClick = { 
-                                if (usernameInput.isNotBlank()) { 
+                            onClick = {
+                                if (usernameInput.isNotBlank()) {
                                     settingsManager.setActiveUser(usernameInput)
                                     settingsManager.setSessionType("LOCAL")
                                     settingsManager.setLoggedIn(true)
                                     activeUser = usernameInput
                                     sessionType = "LOCAL"
                                     isLoggedIn = true
-                                    usernameInput = "" 
-                                } 
-                            }, 
-                            modifier = Modifier.weight(1f), 
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberSurface), 
-                            border = BorderStroke(1.dp, CyberCyan), 
+                                    usernameInput = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = CyberSurface),
+                            border = BorderStroke(1.dp, CyberCyan),
                             shape = RoundedCornerShape(1.dp)
                         ) {
                             Text("LOCAL", fontSize = 9.sp, color = CyberCyan)
                         }
                         Button(
-                            onClick = { 
-                                if (usernameInput.isNotBlank()) { 
+                            onClick = {
+                                if (usernameInput.isNotBlank()) {
                                     settingsManager.setActiveUser(usernameInput)
                                     settingsManager.setSessionType("MICROSOFT")
                                     settingsManager.setLoggedIn(true)
                                     activeUser = usernameInput
                                     sessionType = "MICROSOFT"
                                     isLoggedIn = true
-                                    usernameInput = "" 
-                                } 
-                            }, 
-                            modifier = Modifier.weight(1f), 
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), 
+                                    usernameInput = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
                             shape = RoundedCornerShape(1.dp)
                         ) {
                             Text("MS_LOGIN", fontSize = 9.sp, color = CyberDark, fontWeight = FontWeight.Black)
@@ -452,11 +523,13 @@ fun AccountScreen(settingsManager: SettingsManager) {
     }
 }
 
+// ---------- PANTALLA AJUSTES (con ViewModel) ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(settingsManager: SettingsManager) {
-    var gamePath by remember { mutableStateOf(settingsManager.getGamePath()) }
-    var isDevMode by remember { mutableStateOf(settingsManager.isDeveloperMode()) }
+fun SettingsScreen(viewModel: SettingsViewModel) {
+    val ram by viewModel.ramAllocation.collectAsState()
+    val isDevMode by viewModel.isDevMode.collectAsState()
+    val gamePath by viewModel.gamePath.collectAsState()
 
     Scaffold(
         containerColor = CyberDark,
@@ -470,82 +543,48 @@ fun SettingsScreen(settingsManager: SettingsManager) {
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("MATRIZ DE ALMACENAMIENTO DE JUEGO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
             OutlinedTextField(value = gamePath, onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
                 Switch(
-                    checked = isDevMode, 
-                    onCheckedChange = { 
-                        isDevMode = it
-                        settingsManager.setDeveloperMode(it)
-                    }, 
+                    checked = isDevMode,
+                    onCheckedChange = { viewModel.toggleDevMode() },
                     colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen)
                 )
             }
-        }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HardwareScreen(settingsManager: SettingsManager) {
-    var ramAllocation by remember { mutableStateOf(settingsManager.getRamAllocation().toFloat()) }
-    Scaffold(
-        containerColor = CyberDark,
-        topBar = {
-            TopAppBar(
-                title = { Text("LucyMC // ALLOC_RESOURCES", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
-            )
-        }
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.Center) {
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)), shape = RoundedCornerShape(2.dp)) {
+            // Slider de RAM (antes HardwareScreen)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CyberSurface),
+                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(2.dp)
+            ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text("ASIGNACIÓN LÍMITE DE RAM JVM (-Xmx)", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "${ramAllocation.toInt()} MB ALLOCATED", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeonGreen)
-                    Slider(
-                        value = ramAllocation, 
-                        onValueChange = { ramAllocation = it }, 
-                        valueRange = 1024f..8192f, 
-                        steps = 7,
-                        onValueChangeFinished = { settingsManager.setRamAllocation(ramAllocation.toInt()) },
-                        colors = SliderDefaults.colors(thumbColor = NeonGreen, activeTrackColor = NeonGreen, inactiveTrackColor = CyberSurface)
+                    Text(
+                        "ASIGNACIÓN LÍMITE DE RAM JVM (-Xmx)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = CyberCyan
                     )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ServersScreen() {
-    Scaffold(
-        containerColor = CyberDark,
-        topBar = {
-            TopAppBar(
-                title = { Text("LucyMC // SERVER_NODES", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
-            )
-        }
-    ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Card(modifier = Modifier.weight(1.1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("CREAR ENLACE", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-                    OutlinedTextField(value = "", onValueChange = {}, label = { Text("NODE_IP") }, modifier = Modifier.fillMaxWidth().height(48.dp))
-                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = CyberCyan), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(1.dp)) {
-                        Text("BIND_SERVER", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 10.sp)
-                    }
-                }
-            }
-            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("NODO GUARDADO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("LucyMC Net", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("nodes.lucymc.net:25565", fontSize = 10.sp, color = CyberCyan)
+                    Text(
+                        text = "${ram.toInt()} MB ALLOCATED",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = NeonGreen
+                    )
+                    Slider(
+                        value = ram,
+                        onValueChange = viewModel::setRamAllocation,
+                        valueRange = 1024f..8192f,
+                        steps = 7,
+                        colors = SliderDefaults.colors(
+                            thumbColor = NeonGreen,
+                            activeTrackColor = NeonGreen,
+                            inactiveTrackColor = CyberSurface
+                        )
+                    )
                 }
             }
         }
