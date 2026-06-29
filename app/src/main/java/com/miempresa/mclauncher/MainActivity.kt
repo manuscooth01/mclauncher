@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,15 +37,19 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
+// PALETA CRÍTICA CYBERPUNK PARA EVITAR TONOS GRISES GENÉRICOS
+val NeonGreen = Color(0xFF00FF9F)
+val CyberCyan = Color(0xFF00B8FF)
+val CyberDark = Color(0xFF0A0B10)
+val CyberSurface = Color(0xFF12131C)
+val CyberPanel = Color(0xFF1A1C28)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             LucyMcTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
+                Surface(modifier = Modifier.fillMaxSize(), color = CyberDark) {
                     MainNavigationContainer(filesDir = filesDir)
                 }
             }
@@ -59,23 +65,25 @@ fun MainNavigationContainer(filesDir: File) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val navItems = listOf(
-        NavigationItem("versiones", "VERSIONS", Icons.Filled.List),
-        NavigationItem("perfiles", "PROFILES", Icons.Filled.AccountBox),
-        NavigationItem("mods", "MODS", Icons.Filled.Star),
-        NavigationItem("cuenta", "ACCOUNT", Icons.Filled.Lock),
-        NavigationItem("ajustes", "SETTINGS", Icons.Filled.Settings),
-        NavigationItem("hardware", "HARDWARE", Icons.Filled.Build),
-        NavigationItem("servidores", "SERVERS", Icons.Filled.Home)
-    )
+    val navItems = remember {
+        listOf(
+            NavigationItem("versiones", "VERSIONS", Icons.Filled.List),
+            NavigationItem("perfiles", "PROFILES", Icons.Filled.AccountBox),
+            NavigationItem("mods", "MODS", Icons.Filled.Star),
+            NavigationItem("cuenta", "ACCOUNT", Icons.Filled.Lock),
+            NavigationItem("ajustes", "SETTINGS", Icons.Filled.Settings),
+            NavigationItem("hardware", "HARDWARE", Icons.Filled.Build),
+            NavigationItem("servidores", "SERVERS", Icons.Filled.Home)
+        )
+    }
 
-    Row(modifier = Modifier.fillMaxSize()) {
-        // BARRA LATERAL TÁCTICA (Navigation Rail)
+    Row(modifier = Modifier.fillMaxSize().background(CyberDark)) {
+        // BARRA LATERAL TÁCTICA MEJORADA
         NavigationRail(
-            containerColor = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxHeight().width(85.dp)
+            containerColor = CyberSurface,
+            modifier = Modifier.fillMaxHeight().width(90.dp).padding(end = 2.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             navItems.forEach { item ->
                 val isSelected = currentRoute == item.route
                 NavigationRailItem(
@@ -89,22 +97,22 @@ fun MainNavigationContainer(filesDir: File) {
                             }
                         }
                     },
-                    icon = { Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(20.dp)) },
+                    icon = { Icon(imageVector = item.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
                     label = { Text(text = item.label, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp) },
                     colors = NavigationRailItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.background,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f),
-                        unselectedTextColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
+                        selectedIconColor = CyberDark,
+                        selectedTextColor = NeonGreen,
+                        indicatorColor = NeonGreen,
+                        unselectedIconColor = CyberCyan.copy(alpha = 0.5f),
+                        unselectedTextColor = CyberCyan.copy(alpha = 0.4f)
                     ),
-                    modifier = Modifier.padding(vertical = 1.dp)
+                    modifier = Modifier.padding(vertical = 2.dp)
                 )
             }
         }
 
-        // CONTENEDOR PRINCIPAL DINÁMICO
-        Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+        // VISOR CENTRAL DE MATRIZ
+        Box(modifier = Modifier.fillMaxSize().weight(1f).background(CyberDark)) {
             NavHost(navController = navController, startDestination = "versiones") {
                 composable("versiones") { VersionsScreen(filesDir) }
                 composable("perfiles") { ProfilesScreen() }
@@ -119,7 +127,7 @@ fun MainNavigationContainer(filesDir: File) {
 }
 
 // ==========================================
-// 1. MÓDULO DE VERSIONES (MANIPULACIÓN DE RED)
+// 1. GESTOR DE VERSIONES (OPTIMIZADO Y NEÓN)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,10 +142,7 @@ fun VersionsScreen(filesDir: File) {
             try {
                 val url = URL("https://launchermeta.mojang.com/mc/game/version_manifest.json")
                 val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "GET"
-                conn.connectTimeout = 10000
-                conn.readTimeout = 10000
-
+                conn.connectTimeout = 8000
                 val reader = BufferedReader(InputStreamReader(conn.inputStream))
                 val sb = StringBuilder()
                 var line: String?
@@ -147,19 +152,17 @@ fun VersionsScreen(filesDir: File) {
                 val manifest = JSONObject(sb.toString())
                 val versionsArray = manifest.getJSONArray("versions")
                 val list = mutableListOf<Pair<String, String>>()
-
-                for (i in 0 until versionsArray.length()) {
+                for (i in 0 until minOf(versionsArray.length(), 40)) { // Filtro de optimización inicial
                     val v = versionsArray.getJSONObject(i)
                     list.add(v.getString("id") to v.getString("type"))
                 }
-
                 withContext(Dispatchers.Main) {
                     versions = list
                     isLoading = false
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    status = "Error: ${e.message}"
+                    status = "ERROR_CONEXIÓN_NÚCLEO"
                     isLoading = false
                 }
             }
@@ -167,44 +170,27 @@ fun VersionsScreen(filesDir: File) {
     }
 
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // NÚCLEO_RED", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // MANIFEST_CORE", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 4.dp)) {
-            if (status.isNotEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
-                ) {
-                    Text(text = status, modifier = Modifier.padding(10.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("SINCRO_MANIFEST...", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.5.sp)
-                    }
+                    CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(versions) { (id, type) ->
-                        VersionCard(
-                            versionId = id,
-                            versionType = type,
-                            onDownload = {
-                                scope.launch(Dispatchers.IO) {
-                                    downloadVersion(filesDir, id, type) { msg -> status = msg }
-                                }
+                    items(versions, key = { it.first }) { (id, type) ->
+                        VersionCard(id, type) {
+                            scope.launch(Dispatchers.IO) {
+                                downloadVersion(filesDir, id, type) { msg -> status = msg }
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -214,70 +200,64 @@ fun VersionsScreen(filesDir: File) {
 
 @Composable
 fun VersionCard(versionId: String, versionType: String, onDownload: () -> Unit) {
-    val badgeColor = if (versionType == "release") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+    val accent = if (versionType == "release") NeonGreen else CyberCyan
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onDownload),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f)),
-        shape = RoundedCornerShape(4.dp)
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CyberSurface),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(2.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text(text = versionId, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text(text = versionType.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = badgeColor, letterSpacing = 1.sp)
+                Text(text = versionId, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(text = versionType.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Black, color = accent, letterSpacing = 1.sp)
             }
             Button(
                 onClick = onDownload,
-                colors = ButtonDefaults.buttonColors(containerColor = badgeColor, contentColor = MaterialTheme.colorScheme.onPrimary),
-                shape = RoundedCornerShape(2.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = accent),
+                shape = RoundedCornerShape(1.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.4.dp)
             ) {
-                Text("DESCARGAR", fontSize = 10.sp, fontWeight = FontWeight.Black)
+                Text("FETCH_JAR", fontSize = 9.sp, fontWeight = FontWeight.Black, color = CyberDark)
             }
         }
     }
 }
 
 // ==========================================
-// 2. MÓDULO DE PERFILES (INSTANCIAS DE JUEGO)
+// 2. PERFILES (DISEÑO HORIZONTAL BI-PANEL)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfilesScreen() {
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // PERFILES_DIRECTOR", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // INSTANCE_DIRECTOR", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
             )
         }
     ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Card(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            ) {
+        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("PERFIL ACTIVO", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Minecraft Vanilla", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text("VERSION: 1.20.1 // DEFAULT", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("NÚCLEO ACTIVO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Fabric-Loader-1.20.1", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("ESTADO: EN LA LÍNEA", fontSize = 9.sp, color = NeonGreen)
                 }
             }
-            Card(
-                modifier = Modifier.weight(1.2f).fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("CREAR CONFIGURACIÓN", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
+            Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("INJECT NUEVO PERFIL", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                     OutlinedTextField(
-                        value = "", onValueChange = {}, label = { Text("NOMBRE PERFIL", fontSize = 10.sp) },
-                        modifier = Modifier.fillMaxWidth().height(52.dp), singleLine = true
+                        value = "", onValueChange = {}, label = { Text("ALIAS PROD", color = CyberCyan.copy(alpha = 0.6f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonGreen, unfocusedBorderColor = CyberSurface),
+                        modifier = Modifier.fillMaxWidth().height(48.dp), singleLine = true
                     )
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(2.dp)) {
-                        Text("GUARDAR INSTANCIA", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(1.dp)) {
+                        Text("COMPILAR INSTANCIA", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 11.sp)
                     }
                 }
             }
@@ -286,38 +266,35 @@ fun ProfilesScreen() {
 }
 
 // ==========================================
-// 3. MÓDULO DE MODS (GESTOR COMPONENTES)
+// 3. INYECTOR DE MODS (.JAR DETECTADOS)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModsScreen() {
-    val mockMods = listOf("Sodium-Fabric-1.20.1.jar", "Iris-Shaders-1.20.1.jar", "Lithium-Optimization.jar")
+    val mockMods = remember { listOf("Sodium-Fabric-1.20.1.jar", "Iris-Shaders-1.20.1.jar", "Lithium-Optimization.jar") }
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // MODS_INJECTOR", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // MODS_INJECTOR", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("MODS DETECTADOS EN /mods", fontSize = 12.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
-                Button(onClick = {}, shape = RoundedCornerShape(2.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-                    Text("AÑADIR .JAR", fontSize = 10.sp)
+                Text("ARCHIVOS .JAR EN /mods", fontSize = 11.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = CyberCyan), shape = RoundedCornerShape(1.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                    Text("ADD_MOD", fontSize = 10.sp, color = CyberDark, fontWeight = FontWeight.Black)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(mockMods) { mod ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-                    ) {
-                        Row(modifier = Modifier.padding(10.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(mod, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Text("ACTIVO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(mockMods, key = { it }) { mod ->
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.1f)), shape = RoundedCornerShape(1.dp)) {
+                        Row(modifier = Modifier.padding(8.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(mod, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                            Text("LOADED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                         }
                     }
                 }
@@ -327,7 +304,7 @@ fun ModsScreen() {
 }
 
 // ==========================================
-// 4. MÓDULO DE CUENTAS (IDENTIDAD OPERADOR)
+// 4. IDENTIDAD DE CUENTA (ELIMINADO FANTASMA)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -335,49 +312,36 @@ fun AccountScreen() {
     var usernameInput by remember { mutableStateOf("") }
     var isLoggedIn by remember { mutableStateOf(false) }
     var activeUser by remember { mutableStateOf("INVITADO_X") }
-    var sessionType by remember { mutableStateOf("NINGUNA") }
+    var sessionType by remember { mutableStateOf("NOT_FOUND") }
 
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // ID_MANAGER", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // OPERATOR_ID", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
             )
         }
     ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Card(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, if (isLoggedIn) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(imageVector = Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.size(48.dp), tint = if (isLoggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                    Text(text = "ACCESO: $sessionType", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isLoggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
-                    if (isLoggedIn) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { isLoggedIn = false; activeUser = "INVITADO_X"; sessionType = "NINGUNA" }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(2.dp)) {
-                            Text("LOGOUT", fontSize = 9.sp)
-                        }
-                    }
+        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, if (isLoggedIn) NeonGreen.copy(alpha = 0.4f) else CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(imageVector = Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp), tint = if (isLoggedIn) NeonGreen else CyberCyan.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.White)
+                    Text(text = "AUTH: $sessionType", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isLoggedIn) NeonGreen else CyberCyan)
                 }
             }
-            Card(
-                modifier = Modifier.weight(1.3f).fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-            ) {
-                Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("REGISTRAR ACCESO", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
-                    OutlinedTextField(value = usernameInput, onValueChange = { usernameInput = it }, label = { Text("OPERADOR ALIAS", fontSize = 10.sp) }, modifier = Modifier.fillMaxWidth().height(50.dp), singleLine = true)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(onClick = { if (usernameInput.isNotBlank()) { activeUser = usernameInput; sessionType = "OFFLINE"; isLoggedIn = true; usernameInput = "" } }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary), shape = RoundedCornerShape(2.dp)) {
-                            Text("LOCAL", fontSize = 10.sp)
+            Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("AUTENTICAR LOG", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    OutlinedTextField(value = usernameInput, onValueChange = { usernameInput = it }, label = { Text("ALIAS") }, modifier = Modifier.fillMaxWidth().height(48.dp), singleLine = true)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Button(onClick = { if (usernameInput.isNotBlank()) { activeUser = usernameInput; sessionType = "LOCAL"; isLoggedIn = true; usernameInput = "" } }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan), shape = RoundedCornerShape(1.dp)) {
+                            Text("LOCAL", fontSize = 9.sp, color = CyberCyan)
                         }
-                        Button(onClick = { if (usernameInput.isNotBlank()) { activeUser = usernameInput; sessionType = "MICROSOFT"; isLoggedIn = true; usernameInput = "" } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(2.dp)) {
-                            Text("LOGIN MS", fontSize = 10.sp)
+                        Button(onClick = { if (usernameInput.isNotBlank()) { activeUser = usernameInput; sessionType = "MICROSOFT"; isLoggedIn = true; usernameInput = "" } }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), shape = RoundedCornerShape(1.dp)) {
+                            Text("MS_LOGIN", fontSize = 9.sp, color = CyberDark, fontWeight = FontWeight.Black)
                         }
                     }
                 }
@@ -387,63 +351,57 @@ fun AccountScreen() {
 }
 
 // ==========================================
-// 5. MÓDULO DE AJUSTES (ESTRUCTURA RUTAS)
+// 5. AJUSTES (RUTAS FIJAS DE CONFIGURACIÓN)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // PANEL_CONFIG", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // SYSTEM_RUTAS", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("DIRECTORIOS INTERNOS", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
-            OutlinedTextField(value = "/data/data/com.termux/files/home/.minecraft", onValueChange = {}, label = { Text("RUTA DE JUEGO", fontSize = 10.sp) }, modifier = Modifier.fillMaxWidth(), readOnly = true)
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("MATRIZ DE ALMACENAMIENTO DE JUEGO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+            OutlinedTextField(value = "/data/data/com.termux/files/home/.minecraft", onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Activar registros detallados (Logs)", fontSize = 13.sp)
-                Switch(checked = true, onCheckedChange = {}, colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary))
+                Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
+                Switch(checked = true, onCheckedChange = {}, colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen))
             }
         }
     }
 }
 
 // ==========================================
-// 6. MÓDULO DE HARDWARE (ASIGNACIÓN DE RAM)
+// 6. ASIGNACIÓN HARDWARE (JVM TUNING SLIDER)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HardwareScreen() {
-    var ramAllocation by remember { mutableStateOf(2048f) }
+    var ramAllocation by remember { mutableStateOf(3072f) }
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // HARDWARE_RESOURCE", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // ALLOC_RESOURCES", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.Center) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("ASIGNACIÓN ASIGNADA DE MEMORIA JVM", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(text = "${ramAllocation.toInt()} MB asignados para Minecraft (-Xmx)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.Center) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("ASIGNACIÓN LÍMITE DE RAM JVM (-Xmx)", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "${ramAllocation.toInt()} MB ALLOCATED", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                     Slider(
-                        value = ramAllocation,
-                        onValueChange = { ramAllocation = it },
-                        valueRange = 1024f..8192f,
-                        steps = 7,
-                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
+                        value = ramAllocation, onValueChange = { ramAllocation = it }, valueRange = 1024f..8192f, steps = 7,
+                        colors = SliderDefaults.colors(thumbColor = NeonGreen, activeTrackColor = NeonGreen, inactiveTrackColor = CyberSurface)
                     )
-                    Text("Rango seguro del sistema: 1GB a 8GB de asignación limpia.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -451,43 +409,36 @@ fun HardwareScreen() {
 }
 
 // ==========================================
-// 7. MÓDULO SERVIDORES (CONEXIONES INTERNAS)
+// 7. MATRIX SERVERS (LISTA DE ENLACE)
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServersScreen() {
     Scaffold(
+        containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // MATRIX_SERVERS", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.primary)
+                title = { Text("LucyMC // SERVER_NODES", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
             )
         }
     ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Card(
-                modifier = Modifier.weight(1.2f).fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-            ) {
+        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(modifier = Modifier.weight(1.1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("AÑADIR TERMINAL SERVER", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.secondary)
-                    OutlinedTextField(value = "", onValueChange = {}, label = { Text("IP / DOMINIO", fontSize = 10.sp) }, modifier = Modifier.fillMaxWidth().height(48.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(2.dp)) {
-                        Text("ENLAZAR SERVER", fontSize = 10.sp)
+                    Text("CREAR ENLACE", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    OutlinedTextField(value = "", onValueChange = {}, label = { Text("NODE_IP") }, modifier = Modifier.fillMaxWidth().height(48.dp))
+                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = CyberCyan), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(1.dp)) {
+                        Text("BIND_SERVER", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 10.sp)
                     }
                 }
             }
-            Card(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            ) {
+            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("DIRECCIÓN GUARDADA", fontSize = 11.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                    Text("NODO GUARDADO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("LucyMC Official", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("play.lucymc.net:25565", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("LucyMC Net", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("nodes.lucymc.net:25565", fontSize = 10.sp, color = CyberCyan)
                 }
             }
         }
@@ -495,11 +446,11 @@ fun ServersScreen() {
 }
 
 // ==========================================
-// PROCESADOR DE DESCARGAS (NATIVO SIN CAMBIOS)
+// DESCARGADOR DE BINARIOS COMPLETO (NATIVO)
 // ==========================================
 suspend fun downloadVersion(filesDir: File, versionId: String, versionType: String, onStatus: (String) -> Unit) {
     try {
-        onStatus("Buscando $versionId...")
+        onStatus("CONNECTING_CORE...")
         val manifestUrl = URL("https://launchermeta.mojang.com/mc/game/version_manifest.json")
         val conn = manifestUrl.openConnection() as HttpURLConnection
         val reader = BufferedReader(InputStreamReader(conn.inputStream))
@@ -518,9 +469,8 @@ suspend fun downloadVersion(filesDir: File, versionId: String, versionType: Stri
                 break
             }
         }
-        if (versionUrl.isEmpty()) { onStatus("Error: URL no encontrada"); return }
+        if (versionUrl.isEmpty()) { onStatus("ERR_URL_NOT_FOUND"); return }
 
-        onStatus("Descargando JSON de $versionId...")
         val vConn = URL(versionUrl).openConnection() as HttpURLConnection
         val vReader = BufferedReader(InputStreamReader(vConn.inputStream))
         val vSb = StringBuilder()
@@ -535,13 +485,11 @@ suspend fun downloadVersion(filesDir: File, versionId: String, versionType: Stri
         val downloads = JSONObject(versionJson).getJSONObject("downloads")
         val client = downloads.getJSONObject("client")
         val clientUrl = client.getString("url")
-        val clientSize = client.getLong("size")
 
-        onStatus("Descargando cliente (${clientSize / 1024 / 1024}MB)...")
         val jarFile = File(dir, "$versionId.jar")
         URL(clientUrl).openStream().use { input -> jarFile.outputStream().use { output -> input.copyTo(output) } }
-        onStatus("✅ $versionId listo! JSON + JAR guardados")
+        onStatus("✅ MATRIX_$versionId_ONLINE")
     } catch (e: Exception) {
-        onStatus("❌ Error: ${e.message}")
+        onStatus("❌ CORE_FETCH_FAILURE")
     }
 }
