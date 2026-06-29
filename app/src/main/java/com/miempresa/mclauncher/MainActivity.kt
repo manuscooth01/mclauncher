@@ -3,10 +3,12 @@ package com.miempresa.mclauncher
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.miempresa.mclauncher.ui.theme.LucyMcTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,7 +33,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            // Inyectamos tu tema Cyberpunk Oscuro permanente
+            LucyMcTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -92,13 +96,15 @@ fun LauncherScreen(filesDir: File) {
             TopAppBar(
                 title = {
                     Text(
-                        "MI LAUNCHER PRO",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp
+                        "LucyMC",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 24.sp,
+                        letterSpacing = 1.5.sp
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -116,28 +122,44 @@ fun LauncherScreen(filesDir: File) {
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
                 ) {
                     Text(
                         text = status,
                         modifier = Modifier.padding(16.dp),
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 4.dp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Cargando versiones...", fontSize = 16.sp)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(50.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "SINCRO DE RED...",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(versions) { (id, type) ->
                         VersionCard(
@@ -164,16 +186,28 @@ fun VersionCard(
     versionType: String,
     onDownload: () -> Unit
 ) {
+    // Definimos el color del sutil resplandor lateral según el tipo de versión
+    val badgeColor = if (versionType == "release") {
+        MaterialTheme.colorScheme.primary // Cian para estables
+    } else {
+        MaterialTheme.colorScheme.secondary // Azul eléctrico para snapshots/alfas
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onDownload),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        // Bordes delgados y estilizados al estilo HUD de juego militar/cyberpunk
+        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.25f)),
+        shape = RoundedCornerShape(6.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -181,16 +215,34 @@ fun VersionCard(
                 Text(
                     text = versionId,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = versionType.uppercase(),
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = badgeColor,
+                    letterSpacing = 1.sp
                 )
             }
-            Button(onClick = onDownload) {
-                Text("Descargar")
+            
+            Button(
+                onClick = onDownload,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = badgeColor,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    "OBTENER",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
             }
         }
     }
