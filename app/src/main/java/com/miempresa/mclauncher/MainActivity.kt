@@ -21,17 +21,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.miempresa.mclauncher.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
-// ---------- RUTAS TIPADAS ----------
 sealed class Screen(val route: String) {
     object Versions : Screen("versiones")
     object Modpacks : Screen("modpacks")
@@ -62,7 +59,6 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Managers y ViewModels
     val settingsManager = remember(context) { SettingsManager(context) }
     val versionManager = remember(filesDir, context) { VersionManager(filesDir, context) }
 
@@ -73,11 +69,10 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
         factory = SettingsViewModelFactory(settingsManager)
     )
 
-    // Lista de navegación (5 ítems)
     val navItems = listOf(
         NavigationItem(Screen.Versions, "VERSIONES", Icons.Filled.List),
-        NavigationItem(Screen.Moddpacks, "MODPACKS", Icons.Filled.Folder),
-        NavigationItem(Screen.Mods, "MODS", Icons.Filled.Extension),
+        NavigationItem(Screen.Modpacks, "MODPACKS", Icons.Filled.FolderOpen),
+        NavigationItem(Screen.Mods, "MODS", Icons.Filled.Widgets),
         NavigationItem(Screen.Account, "CUENTA", Icons.Filled.Person),
         NavigationItem(Screen.Settings, "AJUSTES", Icons.Filled.Settings)
     )
@@ -140,10 +135,11 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
                 composable(Screen.Versions.route) {
                     VersionsScreen(
                         viewModel = versionsViewModel,
+                        versionManager = versionManager,
                         snackbarHostState = remember { SnackbarHostState() }
                     )
                 }
-                composable(Screen.Moddpacks.route) { ModpacksScreen() }
+                composable(Screen.Modpacks.route) { ModpacksScreen() }
                 composable(Screen.Mods.route) { ModsScreen() }
                 composable(Screen.Account.route) { AccountScreen(settingsManager) }
                 composable(Screen.Settings.route) {
@@ -154,7 +150,6 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
     }
 }
 
-// ---------- FACTORIES PARA VIEWMODEL (sin Hilt) ----------
 class VersionsViewModelFactory(private val versionManager: VersionManager) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(VersionsViewModel::class.java)) {
@@ -175,17 +170,16 @@ class SettingsViewModelFactory(private val settingsManager: SettingsManager) : a
     }
 }
 
-// ---------- PANTALLA VERSIONES (con ViewModel) ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionsScreen(
     viewModel: VersionsViewModel,
+    versionManager: VersionManager,
     snackbarHostState: SnackbarHostState
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // Escuchar efectos (snackbars)
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
             when (effect) {
@@ -196,7 +190,6 @@ fun VersionsScreen(
         }
     }
 
-    // Versiones filtradas y ordenadas
     val filteredVersions = remember(uiState.versions, uiState.selectedFilter, uiState.searchQuery) {
         var list = when (uiState.selectedFilter) {
             "RELEASES" -> uiState.versions.filter { it.second == "release" }
@@ -220,7 +213,6 @@ fun VersionsScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
-            // Barra de búsqueda (visible solo si no está cargando)
             if (!uiState.isLoading) {
                 OutlinedTextField(
                     value = uiState.searchQuery,
@@ -247,7 +239,6 @@ fun VersionsScreen(
                     singleLine = true
                 )
 
-                // Filtros rápidos
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -281,7 +272,6 @@ fun VersionsScreen(
                 }
             }
 
-            // Contenido principal
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
@@ -310,7 +300,6 @@ fun VersionsScreen(
                 }
             }
 
-            // Estado de descarga
             if (uiState.downloadStatus.isNotEmpty()) {
                 Text(
                     text = uiState.downloadStatus,
@@ -366,7 +355,6 @@ fun VersionCard(
     }
 }
 
-// ---------- PANTALLA MODPACKS ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModpacksScreen() {
@@ -405,7 +393,6 @@ fun ModpacksScreen() {
     }
 }
 
-// ---------- PANTALLA MODS ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModsScreen() {
@@ -441,7 +428,6 @@ fun ModsScreen() {
     }
 }
 
-// ---------- PANTALLA CUENTA ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(settingsManager: SettingsManager) {
@@ -523,7 +509,6 @@ fun AccountScreen(settingsManager: SettingsManager) {
     }
 }
 
-// ---------- PANTALLA AJUSTES (con ViewModel) ----------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
@@ -553,7 +538,6 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 )
             }
 
-            // Slider de RAM (antes HardwareScreen)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = CyberSurface),
