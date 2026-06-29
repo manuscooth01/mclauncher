@@ -5,9 +5,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,6 +32,7 @@ import com.miempresa.mclauncher.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
+// ---------- RUTAS TIPADAS ----------
 sealed class Screen(val route: String) {
     object Versions : Screen("versiones")
     object Modpacks : Screen("modpacks")
@@ -170,6 +174,9 @@ class SettingsViewModelFactory(private val settingsManager: SettingsManager) : a
     }
 }
 
+// ============================================================================
+//  PANTALLA DE VERSIONES (CON GRID, FOOTER Y BOTTOM SHEET)
+// ============================================================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionsScreen(
@@ -178,8 +185,11 @@ fun VersionsScreen(
     snackbarHostState: SnackbarHostState
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val selectedVersion by viewModel.selectedVersion.collectAsState()
+    val isBottomSheetOpen by viewModel.isBottomSheetOpen.collectAsState()
     val scope = rememberCoroutineScope()
 
+    // Efectos (snackbars)
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
             when (effect) {
@@ -190,6 +200,7 @@ fun VersionsScreen(
         }
     }
 
+    // Filtrar versiones
     val filteredVersions = remember(uiState.versions, uiState.selectedFilter, uiState.searchQuery) {
         var list = when (uiState.selectedFilter) {
             "RELEASES" -> uiState.versions.filter { it.second == "release" }
@@ -207,22 +218,79 @@ fun VersionsScreen(
         containerColor = CyberDark,
         topBar = {
             TopAppBar(
-                title = { Text("LucyMC // MANIFEST_CORE", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
+                title = {
+                    Text(
+                        text = "LUCYMC",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 18.sp,
+                        letterSpacing = 4.sp,
+                        color = NeonGreen
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = CyberDark,
+                    titleContentColor = NeonGreen
+                ),
+                actions = {
+                    // Indicador de estado del sistema (Health Check)
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                when {
+                                    uiState.isLoading -> Color.Yellow
+                                    uiState.downloading -> Color.Yellow
+                                    else -> Color.Green
+                                },
+                                shape = RoundedCornerShape(50)
+                            )
+                    )
+                }
+            )
+        },
+        bottomBar = {
+            LaunchFooter(
+                selectedVersion = selectedVersion,
+                onLaunch = { viewModel.launchGame() }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 14.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 14.dp)
+        ) {
+            // Barra de búsqueda (si no está cargando)
             if (!uiState.isLoading) {
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = viewModel::updateSearchQuery,
-                    placeholder = { Text("BUSCAR VERSIÓN...", color = CyberCyan.copy(alpha = 0.4f), fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    leadingIcon = { Icon(Icons.Filled.Search, null, tint = CyberCyan, modifier = Modifier.size(18.dp)) },
+                    placeholder = {
+                        Text(
+                            "BUSCAR VERSIÓN...",
+                            color = CyberCyan.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.Search,
+                            null,
+                            tint = CyberCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
                     trailingIcon = {
                         if (uiState.searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                Icon(Icons.Filled.Clear, null, tint = NeonGreen, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.Filled.Clear,
+                                    null,
+                                    tint = NeonGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
                     },
@@ -239,6 +307,7 @@ fun VersionsScreen(
                     singleLine = true
                 )
 
+                // Filtros rápidos
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -257,7 +326,10 @@ fun VersionsScreen(
                                 containerColor = if (isSelected) accent else CyberSurface
                             ),
                             shape = RoundedCornerShape(1.dp),
-                            border = BorderStroke(1.dp, if (isSelected) accent else accent.copy(alpha = 0.2f)),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isSelected) accent else accent.copy(alpha = 0.2f)
+                            ),
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
                         ) {
                             Text(
@@ -272,34 +344,30 @@ fun VersionsScreen(
                 }
             }
 
+            // GRID DE 2 COLUMNAS
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
                 }
             } else {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filteredVersions, key = { it.first }) { (id, type) ->
-                        VersionCard(
+                        VersionGridCard(
                             versionId = id,
                             versionType = type,
-                            onDownload = {
-                                if (!versionManager.isInternetAvailable()) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("No hay conexión a internet.")
-                                    }
-                                } else {
-                                    viewModel.downloadVersion(id)
-                                }
-                            },
-                            isDownloading = uiState.downloading && uiState.downloadStatus.contains(id)
+                            isInstalled = viewModel.isVersionInstalled(id),
+                            onCardClick = { viewModel.selectVersion(id) }
                         )
                     }
                 }
             }
 
+            // Mensaje de estado de descarga
             if (uiState.downloadStatus.isNotEmpty()) {
                 Text(
                     text = uiState.downloadStatus,
@@ -310,51 +378,276 @@ fun VersionsScreen(
             }
         }
     }
+
+    // BOTTOM SHEET para seleccionar Loader
+    if (isBottomSheetOpen && selectedVersion != null) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.cancelSelection() },
+            containerColor = CyberSurface,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            tonalElevation = 0.dp
+        ) {
+            LoaderSelectionSheet(
+                versionSelection = selectedVersion!!,
+                availableLoaders = viewModel.availableLoaders,
+                getLoaderVersions = { loader, mcVersion ->
+                    viewModel.getLoaderVersions(loader, mcVersion)
+                },
+                onLoaderSelected = { loader -> viewModel.updateLoader(loader) },
+                onLoaderVersionSelected = { version -> viewModel.updateLoaderVersion(version) },
+                onConfirm = { viewModel.confirmSelection() }
+            )
+        }
+    }
 }
 
+// ----- COMPONENTE: TARJETA DEL GRID -----
 @Composable
-fun VersionCard(
+fun VersionGridCard(
     versionId: String,
     versionType: String,
-    onDownload: () -> Unit,
-    isDownloading: Boolean
+    isInstalled: Boolean,
+    onCardClick: () -> Unit
 ) {
     val accent = if (versionType == "release") NeonGreen else CyberCyan
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CyberSurface),
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isInstalled) CyberPanel else CyberSurface
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isInstalled) NeonGreen.copy(alpha = 0.8f) else accent.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = versionId,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = versionType.uppercase(),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Black,
+                color = accent,
+                letterSpacing = 1.sp
+            )
+            if (isInstalled) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Instalado",
+                        tint = NeonGreen,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "INSTALADO",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = NeonGreen
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ----- COMPONENTE: FOOTER DE LANZAMIENTO -----
+@Composable
+fun LaunchFooter(
+    selectedVersion: VersionSelection?,
+    onLaunch: () -> Unit
+) {
+    Surface(
+        color = CyberSurface,
+        tonalElevation = 0.dp,
+        modifier = Modifier.height(72.dp)
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(text = versionId, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(text = versionType.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Black, color = accent, letterSpacing = 1.sp)
+                Text(
+                    text = if (selectedVersion != null) selectedVersion.displayName() else "SELECCIONA UNA VERSIÓN",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (selectedVersion != null) Color.White else CyberCyan.copy(alpha = 0.5f)
+                )
+                if (selectedVersion != null) {
+                    Text(
+                        text = "Listo para jugar",
+                        fontSize = 10.sp,
+                        color = NeonGreen
+                    )
+                }
             }
+
             Button(
-                onClick = onDownload,
-                enabled = !isDownloading,
+                onClick = onLaunch,
+                enabled = selectedVersion != null,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDownloading) CyberPanel else accent
+                    containerColor = NeonGreen,
+                    disabledContainerColor = CyberPanel
                 ),
-                shape = RoundedCornerShape(1.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.4.dp)
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = if (isDownloading) "DESCARGANDO..." else "FETCH_JAR",
-                    fontSize = 9.sp,
+                    text = "▶ INICIAR",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
-                    color = if (isDownloading) CyberCyan else CyberDark
+                    color = if (selectedVersion != null) CyberDark else CyberCyan.copy(alpha = 0.4f),
+                    letterSpacing = 1.sp
                 )
             }
         }
     }
 }
 
+// ----- COMPONENTE: BOTTOM SHEET DE LOADER -----
+@Composable
+fun LoaderSelectionSheet(
+    versionSelection: VersionSelection,
+    availableLoaders: List<String>,
+    getLoaderVersions: (String, String) -> List<String>,
+    onLoaderSelected: (String?) -> Unit,
+    onLoaderVersionSelected: (String) -> Unit,
+    onConfirm: () -> Unit
+) {
+    var selectedLoader by remember { mutableStateOf(versionSelection.loader) }
+    var selectedLoaderVersion by remember { mutableStateOf(versionSelection.loaderVersion) }
+
+    // Versiones del loader obtenidas de la función
+    val loaderVersions = if (selectedLoader != null && selectedLoader != "Vanilla") {
+        getLoaderVersions(selectedLoader!!, versionSelection.versionId)
+    } else {
+        emptyList()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "VERSIÓN ${versionSelection.versionId}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            letterSpacing = 2.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Selector de Loaders (chips horizontales)
+        Text("SELECCIONA LOADER", fontSize = 10.sp, color = CyberCyan)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            availableLoaders.forEach { loader ->
+                val isSelected = selectedLoader == loader
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        selectedLoader = if (isSelected) null else loader
+                        selectedLoaderVersion = null
+                        onLoaderSelected(selectedLoader)
+                    },
+                    label = {
+                        Text(
+                            text = loader,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isSelected) CyberDark else CyberCyan
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = NeonGreen,
+                        containerColor = CyberSurface,
+                        selectedLabelColor = CyberDark
+                    ),
+                    border = BorderStroke(1.dp, if (isSelected) NeonGreen else CyberCyan.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(2.dp)
+                )
+            }
+        }
+
+        // Selector de versiones del loader (si hay)
+        if (selectedLoader != null && selectedLoader != "Vanilla") {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("VERSIONES DE $selectedLoader", fontSize = 10.sp, color = CyberCyan)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                loaderVersions.forEach { version ->
+                    val isSelected = selectedLoaderVersion == version
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            selectedLoaderVersion = version
+                            onLoaderVersionSelected(version)
+                        },
+                        label = {
+                            Text(
+                                text = version,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isSelected) CyberDark else CyberCyan
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CyberCyan,
+                            containerColor = CyberSurface,
+                            selectedLabelColor = CyberDark
+                        ),
+                        border = BorderStroke(1.dp, if (isSelected) CyberCyan else CyberCyan.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(2.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onConfirm,
+            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text(
+                text = "CONFIRMAR",
+                color = CyberDark,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp,
+                letterSpacing = 2.sp
+            )
+        }
+    }
+}
+
+// ============================================================================
+//  RESTO DE PANTALLAS (sin cambios significativos)
+// ============================================================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModpacksScreen() {

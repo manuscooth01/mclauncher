@@ -1,0 +1,47 @@
+.
+├── app
+│   ├── build.gradle
+│   └── src
+│       └── main
+│           ├── AndroidManifest.xml
+│           ├── java
+│           │   └── com
+│           │       └── miempresa
+│           │           └── mclauncher
+│           │               ├── MainActivity.kt
+│           │               ├── SettingsManager.kt
+│           │               ├── SettingsViewModel.kt
+│           │               ├── VersionManager.kt
+│           │               ├── VersionsViewModel.kt
+│           │               └── ui
+│           │                   └── theme
+│           │                       ├── Color.kt
+│           │                       └── Theme.kt
+│           └── res
+│               ├── layout
+│               ├── mipmap-hdpi
+│               │   └── ic_launcher.png
+│               ├── mipmap-mdpi
+│               │   └── ic_launcher.png
+│               ├── mipmap-xhdpi
+│               │   └── ic_launcher.png
+│               ├── mipmap-xxhdpi
+│               │   └── ic_launcher.png
+│               ├── mipmap-xxxhdpi
+│               │   └── ic_launcher.png
+│               └── values
+│                   └── strings.xml
+├── build.gradle
+├── estructura.txt
+├── estructura_actual.txt
+├── gradle
+│   └── wrapper
+│       ├── gradle-wrapper.jar
+│       └── gradle-wrapper.properties
+├── gradle.properties
+├── gradlew
+├── gradlew.bat
+├── icon_original.png
+└── settings.gradle
+
+20 directories, 25 files
