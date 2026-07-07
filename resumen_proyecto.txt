@@ -1,0 +1,1475 @@
+========================================
+  LUCYMC - RESUMEN COMPLETO DEL PROYECTO
+========================================
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/AndroidManifest.xml
+========================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="LucyMC"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <activity
+            android:name="com.miempresa.mclauncher.MainActivity"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/MainActivity.kt
+========================================
+
+package com.miempresa.mclauncher
+
+import android.content.Context
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.miempresa.mclauncher.ui.theme.*
+import kotlinx.coroutines.launch
+import java.io.File
+
+// ---------- RUTAS TIPADAS ----------
+sealed class Screen(val route: String) {
+    object Versions : Screen("versiones")
+    object Modpacks : Screen("modpacks")
+    object Mods : Screen("mods")
+    object Account : Screen("cuenta")
+    object Settings : Screen("ajustes")
+}
+
+data class NavigationItem(val screen: Screen, val label: String, val icon: ImageVector)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            LucyMcTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = CyberDark) {
+                    MainNavigationContainer(filesDir = filesDir, context = this)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainNavigationContainer(filesDir: File, context: Context) {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val settingsManager = remember(context) { SettingsManager(context) }
+    val versionManager = remember(filesDir, context) { VersionManager(filesDir, context) }
+
+    val versionsViewModel: VersionsViewModel = viewModel(
+        factory = VersionsViewModelFactory(versionManager)
+    )
+    val settingsViewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModelFactory(settingsManager)
+    )
+
+    val navItems = listOf(
+        NavigationItem(Screen.Versions, "VERSIONES", Icons.Filled.List),
+        NavigationItem(Screen.Modpacks, "MODPACKS", Icons.Filled.FolderOpen),
+        NavigationItem(Screen.Mods, "MODS", Icons.Filled.Widgets),
+        NavigationItem(Screen.Account, "CUENTA", Icons.Filled.Person),
+        NavigationItem(Screen.Settings, "AJUSTES", Icons.Filled.Settings)
+    )
+
+    Scaffold(
+        containerColor = CyberDark,
+        bottomBar = {
+            NavigationBar(
+                containerColor = CyberSurface,
+                tonalElevation = 0.dp,
+                modifier = Modifier.height(64.dp)
+            ) {
+                navItems.forEach { item ->
+                    val isSelected = currentRoute == item.screen.route
+                    NavigationBarItem(
+                        selected = isSelected,
+                        onClick = {
+                            if (currentRoute != item.screen.route) {
+                                navController.navigate(item.screen.route) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = item.label,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.5.sp
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = NeonGreen,
+                            selectedTextColor = NeonGreen,
+                            unselectedIconColor = CyberCyan.copy(alpha = 0.5f),
+                            unselectedTextColor = CyberCyan.copy(alpha = 0.4f),
+                            indicatorColor = NeonGreen.copy(alpha = 0.15f)
+                        )
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Versions.route
+            ) {
+                composable(Screen.Versions.route) {
+                    VersionsScreen(
+                        viewModel = versionsViewModel,
+                        versionManager = versionManager,
+                        snackbarHostState = remember { SnackbarHostState() }
+                    )
+                }
+                composable(Screen.Modpacks.route) { ModpacksScreen() }
+                composable(Screen.Mods.route) { ModsScreen() }
+                composable(Screen.Account.route) { AccountScreen(settingsManager) }
+                composable(Screen.Settings.route) {
+                    SettingsScreen(viewModel = settingsViewModel)
+                }
+            }
+        }
+    }
+}
+
+class VersionsViewModelFactory(private val versionManager: VersionManager) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(VersionsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return VersionsViewModel(versionManager) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+class SettingsViewModelFactory(private val settingsManager: SettingsManager) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return SettingsViewModel(settingsManager) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+// ============================================================================
+//  PANTALLA DE VERSIONES (CON GRID, FOOTER Y BOTTOM SHEET)
+// ============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VersionsScreen(
+    viewModel: VersionsViewModel,
+    versionManager: VersionManager,
+    snackbarHostState: SnackbarHostState
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val selectedVersion by viewModel.selectedVersion.collectAsState()
+    val isBottomSheetOpen by viewModel.isBottomSheetOpen.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    // Efectos (snackbars)
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is VersionsEffect.ShowSnackbar -> {
+                    scope.launch { snackbarHostState.showSnackbar(effect.message) }
+                }
+            }
+        }
+    }
+
+    // Filtrar versiones
+    val filteredVersions = remember(uiState.versions, uiState.selectedFilter, uiState.searchQuery) {
+        var list = when (uiState.selectedFilter) {
+            "RELEASES" -> uiState.versions.filter { it.second == "release" }
+            "SNAPSHOTS" -> uiState.versions.filter { it.second == "snapshot" }
+            else -> uiState.versions
+        }
+        if (uiState.searchQuery.isNotBlank()) {
+            list = list.filter { it.first.contains(uiState.searchQuery, ignoreCase = true) }
+        }
+        list.sortedByDescending { it.first }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        containerColor = Color.Transparent,
+        modifier = Modifier.background(Brush.verticalGradient(listOf(CyberDark, CyberSurface))),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "LUCYMC",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 18.sp,
+                        letterSpacing = 4.sp,
+                        color = NeonGreen
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = NeonGreen
+                ),
+                actions = {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                when {
+                                    uiState.isLoading -> Color.Yellow
+                                    uiState.downloading -> Color.Yellow
+                                    else -> Color.Green
+                                },
+                                shape = RoundedCornerShape(50)
+                            )
+                    )
+                }
+            )
+        },
+        bottomBar = {
+            LaunchFooter(
+                selectedVersion = selectedVersion,
+                onLaunch = { viewModel.launchGame() }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 14.dp)
+        ) {
+            if (!uiState.isLoading) {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::updateSearchQuery,
+                    placeholder = {
+                        Text(
+                            "BUSCAR VERSIÓN...",
+                            color = CyberCyan.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.Search,
+                            null,
+                            tint = CyberCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                Icon(
+                                    Icons.Filled.Clear,
+                                    null,
+                                    tint = NeonGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = CyberCyan,
+                        unfocusedBorderColor = CyberSurface,
+                        focusedContainerColor = CyberPanel,
+                        unfocusedContainerColor = CyberPanel
+                    ),
+                    shape = RoundedCornerShape(2.dp),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("ALL", "RELEASES", "SNAPSHOTS").forEach { option ->
+                        val isSelected = uiState.selectedFilter == option
+                        val accent = when (option) {
+                            "RELEASES" -> NeonGreen
+                            "SNAPSHOTS" -> CyberCyan
+                            else -> Color.White
+                        }
+                        Button(
+                            onClick = { viewModel.updateFilter(option) },
+                            modifier = Modifier.weight(1f).height(32.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) accent else CyberSurface
+                            ),
+                            shape = RoundedCornerShape(1.dp),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isSelected) accent else accent.copy(alpha = 0.2f)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = option,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isSelected) CyberDark else accent,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = NeonGreen, strokeWidth = 2.dp)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredVersions, key = { it.first }) { (id, type) ->
+                        VersionGridCard(
+                            versionId = id,
+                            versionType = type,
+                            isInstalled = viewModel.isVersionInstalled(id),
+                            onCardClick = { viewModel.selectVersion(id) }
+                        )
+                    }
+                }
+            }
+
+            if (uiState.downloadStatus.isNotEmpty()) {
+                Text(
+                    text = uiState.downloadStatus,
+                    fontSize = 10.sp,
+                    color = NeonGreen,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+    }
+
+    if (isBottomSheetOpen && selectedVersion != null) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.cancelSelection() },
+            containerColor = CyberSurface,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            tonalElevation = 0.dp
+        ) {
+            LoaderSelectionSheet(
+                versionSelection = selectedVersion!!,
+                availableLoaders = viewModel.availableLoaders,
+                getLoaderVersions = { loader, mcVersion ->
+                    viewModel.getLoaderVersions(loader, mcVersion)
+                },
+                onLoaderSelected = { loader -> viewModel.updateLoader(loader) },
+                onLoaderVersionSelected = { version -> viewModel.updateLoaderVersion(version) },
+                onConfirm = { viewModel.confirmSelection() }
+            )
+        }
+    }
+}
+
+// ----- COMPONENTE: TARJETA DEL GRID -----
+@Composable
+fun VersionGridCard(
+    versionId: String,
+    versionType: String,
+    isInstalled: Boolean,
+    onCardClick: () -> Unit
+) {
+    val accent = if (versionType == "release") NeonGreen else CyberCyan
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(4.dp), clip = false)
+            .clickable { onCardClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.08f)
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color.White.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = versionId,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = versionType.uppercase(),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Black,
+                color = accent,
+                letterSpacing = 1.sp
+            )
+            if (isInstalled) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Instalado",
+                        tint = NeonGreen,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "INSTALADO",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = NeonGreen
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ----- COMPONENTE: FOOTER DE LANZAMIENTO -----
+@Composable
+fun LaunchFooter(
+    selectedVersion: VersionSelection?,
+    onLaunch: () -> Unit
+) {
+    Surface(
+        color = Color.White.copy(alpha = 0.08f),
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier
+            .height(72.dp)
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(4.dp), clip = false)
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)), shape = RoundedCornerShape(4.dp))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = if (selectedVersion != null) selectedVersion.displayName() else "SELECCIONA UNA VERSIÓN",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (selectedVersion != null) Color.White else CyberCyan.copy(alpha = 0.5f)
+                )
+                if (selectedVersion != null) {
+                    Text(
+                        text = "Listo para jugar",
+                        fontSize = 10.sp,
+                        color = NeonGreen
+                    )
+                }
+            }
+
+            Button(
+                onClick = onLaunch,
+                enabled = selectedVersion != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonGreen,
+                    disabledContainerColor = CyberPanel
+                ),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "▶ INICIAR",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (selectedVersion != null) CyberDark else CyberCyan.copy(alpha = 0.4f),
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+    }
+}
+
+// ----- COMPONENTE: BOTTOM SHEET DE LOADER -----
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoaderSelectionSheet(
+    versionSelection: VersionSelection,
+    availableLoaders: List<String>,
+    getLoaderVersions: (String, String) -> List<String>,
+    onLoaderSelected: (String?) -> Unit,
+    onLoaderVersionSelected: (String) -> Unit,
+    onConfirm: () -> Unit
+) {
+    var selectedLoader by remember { mutableStateOf(versionSelection.loader) }
+    var selectedLoaderVersion by remember { mutableStateOf(versionSelection.loaderVersion) }
+
+    val loaderVersions = if (selectedLoader != null && selectedLoader != "Vanilla") {
+        getLoaderVersions(selectedLoader!!, versionSelection.versionId)
+    } else {
+        emptyList()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "VERSIÓN ${versionSelection.versionId}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            letterSpacing = 2.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text("SELECCIONA LOADER", fontSize = 10.sp, color = CyberCyan)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            availableLoaders.forEach { loader ->
+                val isSelected = selectedLoader == loader
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        selectedLoader = if (isSelected) null else loader
+                        selectedLoaderVersion = null
+                        onLoaderSelected(selectedLoader)
+                    },
+                    label = {
+                        Text(
+                            text = loader,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isSelected) CyberDark else CyberCyan
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = NeonGreen,
+                        containerColor = CyberSurface,
+                        selectedLabelColor = CyberDark
+                    ),
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.border(
+                        BorderStroke(
+                            1.dp,
+                            if (isSelected) NeonGreen else CyberCyan.copy(alpha = 0.3f)
+                        ),
+                        RoundedCornerShape(2.dp)
+                    )
+                )
+            }
+        }
+
+        if (selectedLoader != null && selectedLoader != "Vanilla") {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("VERSIONES DE $selectedLoader", fontSize = 10.sp, color = CyberCyan)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                loaderVersions.forEach { version ->
+                    val isSelected = selectedLoaderVersion == version
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            selectedLoaderVersion = version
+                            onLoaderVersionSelected(version)
+                        },
+                        label = {
+                            Text(
+                                text = version,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isSelected) CyberDark else CyberCyan
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CyberCyan,
+                            containerColor = CyberSurface,
+                            selectedLabelColor = CyberDark
+                        ),
+                        shape = RoundedCornerShape(2.dp),
+                        modifier = Modifier.border(
+                            BorderStroke(
+                                1.dp,
+                                if (isSelected) CyberCyan else CyberCyan.copy(alpha = 0.3f)
+                            ),
+                            RoundedCornerShape(2.dp)
+                        )
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onConfirm,
+            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Text(
+                text = "CONFIRMAR",
+                color = CyberDark,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp,
+                letterSpacing = 2.sp
+            )
+        }
+    }
+}
+
+// ============================================================================
+//  RESTO DE PANTALLAS
+// ============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModpacksScreen() {
+    Scaffold(
+        containerColor = CyberDark,
+        topBar = {
+            TopAppBar(
+                title = { Text("LucyMC // MODPACKS_ENGINE", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
+            )
+        }
+    ) { padding ->
+        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("MODPACK ACTIVO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Fabric-Loader-1.20.1", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("ESTADO: EN LA LÍNEA", fontSize = 9.sp, color = NeonGreen)
+                }
+            }
+            Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("CREAR NUEVO MODPACK", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
+                    OutlinedTextField(
+                        value = "", onValueChange = {}, label = { Text("NOMBRE", color = CyberCyan.copy(alpha = 0.6f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonGreen, unfocusedBorderColor = CyberSurface),
+                        modifier = Modifier.fillMaxWidth().height(48.dp), singleLine = true
+                    )
+                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(1.dp)) {
+                        Text("GENERAR MODPACK", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModsScreen() {
+    val mockMods = remember { listOf("Sodium-Fabric-1.20.1.jar", "Iris-Shaders-1.20.1.jar", "Lithium-Optimization.jar") }
+    Scaffold(
+        containerColor = CyberDark,
+        topBar = {
+            TopAppBar(
+                title = { Text("LucyMC // MODS_INJECTOR", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("ARCHIVOS .JAR EN /mods", fontSize = 11.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = CyberCyan), shape = RoundedCornerShape(1.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                    Text("ADD_MOD", fontSize = 10.sp, color = CyberDark, fontWeight = FontWeight.Black)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(mockMods) { mod ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = CyberSurface),
+                        border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(mod, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                            Text("LOADED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = NeonGreen)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AccountScreen(settingsManager: SettingsManager) {
+    var usernameInput by remember { mutableStateOf("") }
+    var activeUser by remember { mutableStateOf(settingsManager.getActiveUser()) }
+    var sessionType by remember { mutableStateOf(settingsManager.getSessionType()) }
+    var isLoggedIn by remember { mutableStateOf(settingsManager.isLoggedIn()) }
+
+    Scaffold(
+        containerColor = CyberDark,
+        topBar = {
+            TopAppBar(
+                title = { Text("LucyMC // OPERATOR_ID", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
+            )
+        }
+    ) { padding ->
+        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, if (isLoggedIn) NeonGreen.copy(alpha = 0.4f) else CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.AccountCircle, null, modifier = Modifier.size(40.dp), tint = if (isLoggedIn) NeonGreen else CyberCyan.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.White)
+                    Text(text = "AUTH: $sessionType", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isLoggedIn) NeonGreen else CyberCyan)
+                }
+            }
+            Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
+                Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("AUTENTICAR LOG", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+                    OutlinedTextField(
+                        value = usernameInput,
+                        onValueChange = { usernameInput = it },
+                        label = { Text("ALIAS") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Button(
+                            onClick = {
+                                if (usernameInput.isNotBlank()) {
+                                    settingsManager.setActiveUser(usernameInput)
+                                    settingsManager.setSessionType("LOCAL")
+                                    settingsManager.setLoggedIn(true)
+                                    activeUser = usernameInput
+                                    sessionType = "LOCAL"
+                                    isLoggedIn = true
+                                    usernameInput = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = CyberSurface),
+                            border = BorderStroke(1.dp, CyberCyan),
+                            shape = RoundedCornerShape(1.dp)
+                        ) {
+                            Text("LOCAL", fontSize = 9.sp, color = CyberCyan)
+                        }
+                        Button(
+                            onClick = {
+                                if (usernameInput.isNotBlank()) {
+                                    settingsManager.setActiveUser(usernameInput)
+                                    settingsManager.setSessionType("MICROSOFT")
+                                    settingsManager.setLoggedIn(true)
+                                    activeUser = usernameInput
+                                    sessionType = "MICROSOFT"
+                                    isLoggedIn = true
+                                    usernameInput = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                            shape = RoundedCornerShape(1.dp)
+                        ) {
+                            Text("MS_LOGIN", fontSize = 9.sp, color = CyberDark, fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(viewModel: SettingsViewModel) {
+    val ram by viewModel.ramAllocation.collectAsState()
+    val isDevMode by viewModel.isDevMode.collectAsState()
+    val gamePath by viewModel.gamePath.collectAsState()
+
+    Scaffold(
+        containerColor = CyberDark,
+        topBar = {
+            TopAppBar(
+                title = { Text("LucyMC // SYSTEM_RUTAS", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("MATRIZ DE ALMACENAMIENTO DE JUEGO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+            OutlinedTextField(value = gamePath, onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
+                Switch(
+                    checked = isDevMode,
+                    onCheckedChange = { viewModel.toggleDevMode() },
+                    colors = SwitchDefaults.colors(checkedThumbColor = NeonGreen)
+                )
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CyberSurface),
+                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        "ASIGNACIÓN LÍMITE DE RAM JVM (-Xmx)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = CyberCyan
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${ram.toInt()} MB ALLOCATED",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = NeonGreen
+                    )
+                    Slider(
+                        value = ram,
+                        onValueChange = viewModel::setRamAllocation,
+                        valueRange = 1024f..8192f,
+                        steps = 7,
+                        colors = SliderDefaults.colors(
+                            thumbColor = NeonGreen,
+                            activeTrackColor = NeonGreen,
+                            inactiveTrackColor = CyberSurface
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/SettingsManager.kt
+========================================
+
+package com.miempresa.mclauncher
+
+import android.content.Context
+import android.content.SharedPreferences
+
+/**
+ * Gestor centralizado de preferencias y configuraciones persistentes del launcher.
+ */
+class SettingsManager(context: Context) {
+
+    companion object {
+        private const val PREFS_NAME = "lucymc_settings"
+        private const val KEY_RAM_ALLOCATION = "ram_allocation"
+        private const val KEY_GAME_PATH = "game_path"
+        private const val KEY_DEVELOPER_MODE = "developer_mode"
+        private const val KEY_ACTIVE_USER = "active_user"
+        private const val KEY_SESSION_TYPE = "session_type"
+        private const val KEY_IS_LOGGED_IN = "is_logged_in"
+
+        private const val DEFAULT_RAM = 3072
+        private const val DEFAULT_PATH = "/data/data/com.termux/files/home/.minecraft"
+        private const val DEFAULT_USER = "INVITADO_X"
+        private const val DEFAULT_SESSION = "NOT_FOUND"
+    }
+
+    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    // --- RAM ---
+    fun getRamAllocation(): Int = prefs.getInt(KEY_RAM_ALLOCATION, DEFAULT_RAM)
+    fun setRamAllocation(mb: Int) = prefs.edit().putInt(KEY_RAM_ALLOCATION, mb).apply()
+
+    // --- Game Path ---
+    fun getGamePath(): String = prefs.getString(KEY_GAME_PATH, DEFAULT_PATH) ?: DEFAULT_PATH
+    fun setGamePath(path: String) = prefs.edit().putString(KEY_GAME_PATH, path).apply()
+
+    // --- Developer Mode ---
+    fun isDeveloperMode(): Boolean = prefs.getBoolean(KEY_DEVELOPER_MODE, true)
+    fun setDeveloperMode(enabled: Boolean) = prefs.edit().putBoolean(KEY_DEVELOPER_MODE, enabled).apply()
+
+    // --- Account ---
+    fun getActiveUser(): String = prefs.getString(KEY_ACTIVE_USER, DEFAULT_USER) ?: DEFAULT_USER
+    fun setActiveUser(user: String) = prefs.edit().putString(KEY_ACTIVE_USER, user).apply()
+
+    fun getSessionType(): String = prefs.getString(KEY_SESSION_TYPE, DEFAULT_SESSION) ?: DEFAULT_SESSION
+    fun setSessionType(type: String) = prefs.edit().putString(KEY_SESSION_TYPE, type).apply()
+
+    fun isLoggedIn(): Boolean = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
+    fun setLoggedIn(logged: Boolean) = prefs.edit().putBoolean(KEY_IS_LOGGED_IN, logged).apply()
+
+    fun clearAccount() {
+        prefs.edit()
+            .putString(KEY_ACTIVE_USER, DEFAULT_USER)
+            .putString(KEY_SESSION_TYPE, DEFAULT_SESSION)
+            .putBoolean(KEY_IS_LOGGED_IN, false)
+            .apply()
+    }
+}
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/SettingsViewModel.kt
+========================================
+
+package com.miempresa.mclauncher
+
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class SettingsViewModel(
+    private val settingsManager: SettingsManager
+) : ViewModel() {
+
+    private val _ramAllocation = MutableStateFlow(settingsManager.getRamAllocation().toFloat())
+    val ramAllocation = _ramAllocation.asStateFlow()
+
+    private val _isDevMode = MutableStateFlow(settingsManager.isDeveloperMode())
+    val isDevMode = _isDevMode.asStateFlow()
+
+    private val _gamePath = MutableStateFlow(settingsManager.getGamePath())
+    val gamePath = _gamePath.asStateFlow()
+
+    fun setRamAllocation(value: Float) {
+        _ramAllocation.value = value
+        settingsManager.setRamAllocation(value.toInt())
+    }
+
+    fun toggleDevMode() {
+        val newValue = !_isDevMode.value
+        _isDevMode.value = newValue
+        settingsManager.setDeveloperMode(newValue)
+    }
+}
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/VersionManager.kt
+========================================
+
+package com.miempresa.mclauncher
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+
+class VersionManager(private val filesDir: File, private val context: Context) {
+
+    companion object {
+        private const val MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+        private const val CONNECT_TIMEOUT = 8000
+        private const val READ_TIMEOUT = 8000
+        private const val PREFS_NAME = "mclauncher_cache"
+        private const val KEY_VERSIONS_LIST = "versions_list"
+    }
+
+    fun isInternetAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        } else {
+            @Suppress("DEPRECATION")
+            val networkInfo = connectivityManager.activeNetworkInfo
+            networkInfo?.isConnected == true
+        }
+    }
+
+    suspend fun fetchVersions(): Result<List<Pair<String, String>>> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(MANIFEST_URL)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = CONNECT_TIMEOUT
+            conn.readTimeout = READ_TIMEOUT
+
+            val reader = BufferedReader(InputStreamReader(conn.inputStream))
+            val sb = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) sb.append(line)
+            reader.close()
+
+            val manifest = JSONObject(sb.toString())
+            val versionsArray = manifest.getJSONArray("versions")
+            val list = mutableListOf<Pair<String, String>>()
+
+            // TODAS las versiones (sin límite)
+            for (i in 0 until versionsArray.length()) {
+                val v = versionsArray.getJSONObject(i)
+                list.add(v.getString("id") to v.getString("type"))
+            }
+
+            saveToCache(versionsArray)
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun loadFromCache(): List<Pair<String, String>>? {
+        return try {
+            val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cachedData = sharedPrefs.getString(KEY_VERSIONS_LIST, null) ?: return null
+
+            val jsonArray = JSONObject(cachedData).getJSONArray("versions")
+            val cachedVersions = mutableListOf<Pair<String, String>>()
+            for (i in 0 until jsonArray.length()) {
+                val v = jsonArray.getJSONObject(i)
+                cachedVersions.add(v.getString("id") to v.getString("type"))
+            }
+            cachedVersions
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun saveToCache(versionsArray: org.json.JSONArray) {
+        try {
+            val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cacheObject = JSONObject()
+            cacheObject.put("versions", versionsArray)
+            sharedPrefs.edit().putString(KEY_VERSIONS_LIST, cacheObject.toString()).apply()
+        } catch (e: Exception) {
+            // Error al guardar en caché, ignorar
+        }
+    }
+
+    suspend fun downloadVersion(versionId: String, onStatus: (String) -> Unit) = withContext(Dispatchers.IO) {
+        try {
+            onStatus("CONNECTING_CORE...")
+
+            // 1. Obtener la URL del manifiesto de la versión
+            val manifestUrl = URL(MANIFEST_URL)
+            val conn = manifestUrl.openConnection() as HttpURLConnection
+            conn.connectTimeout = CONNECT_TIMEOUT
+            conn.readTimeout = READ_TIMEOUT
+
+            val reader = BufferedReader(InputStreamReader(conn.inputStream))
+            val sb = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) sb.append(line)
+            reader.close()
+
+            val manifest = JSONObject(sb.toString())
+            val versions = manifest.getJSONArray("versions")
+            var versionUrl = ""
+
+            for (i in 0 until versions.length()) {
+                val v = versions.getJSONObject(i)
+                if (v.getString("id") == versionId) {
+                    versionUrl = v.getString("url")
+                    break
+                }
+            }
+
+            if (versionUrl.isEmpty()) {
+                onStatus("ERR_URL_NOT_FOUND")
+                return@withContext
+            }
+
+            // 2. Obtener el JSON de la versión específica
+            val vConn = URL(versionUrl).openConnection() as HttpURLConnection
+            val vReader = BufferedReader(InputStreamReader(vConn.inputStream))
+            val vSb = StringBuilder()
+            while (vReader.readLine().also { line = it } != null) vSb.append(line)
+            vReader.close()
+
+            val versionJson = vSb.toString()
+
+            // 3. Guardar el JSON de la versión
+            val dir = File(filesDir, "versions/$versionId")
+            if (!dir.exists()) dir.mkdirs()
+            FileWriter(File(dir, "$versionId.json")).use { it.write(versionJson) }
+
+            // 4. Descargar el JAR del cliente
+            val downloads = JSONObject(versionJson).getJSONObject("downloads")
+            val client = downloads.getJSONObject("client")
+            val clientUrl = client.getString("url")
+
+            val jarFile = File(dir, "$versionId.jar")
+            URL(clientUrl).openStream().use { input ->
+                jarFile.outputStream().use { output -> input.copyTo(output) }
+            }
+
+            onStatus("✅ MATRIX_${versionId}_ONLINE")
+        } catch (e: Exception) {
+            onStatus("❌ CORE_FETCH_FAILURE")
+        }
+    }
+
+    fun isVersionInstalled(versionId: String): Boolean {
+        val jarFile = File(filesDir, "versions/$versionId/$versionId.jar")
+        return jarFile.exists() && jarFile.length() > 0
+    }
+}
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/VersionsViewModel.kt
+========================================
+
+package com.miempresa.mclauncher
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class VersionsViewModel(
+    private val versionManager: VersionManager
+) : ViewModel() {
+
+    // Estados
+    private val _uiState = MutableStateFlow(VersionsUiState())
+    val uiState = _uiState.asStateFlow()
+
+    private val _selectedVersion = MutableStateFlow<VersionSelection?>(null)
+    val selectedVersion = _selectedVersion.asStateFlow()
+
+    private val _isBottomSheetOpen = MutableStateFlow(false)
+    val isBottomSheetOpen = _isBottomSheetOpen.asStateFlow()
+
+    // Efectos (snackbars)
+    private val _effects = MutableSharedFlow<VersionsEffect>()
+    val effects = _effects.asSharedFlow()
+
+    // Loaders disponibles
+    val availableLoaders = listOf("Vanilla", "Fabric", "Forge", "OptiFine", "Quilt")
+
+    fun getLoaderVersions(loader: String, mcVersion: String): List<String> {
+        return when (loader) {
+            "Fabric" -> listOf("0.15.11", "0.16.0", "0.16.2")
+            "Forge" -> listOf("47.2.0", "48.0.1", "49.0.0")
+            "OptiFine" -> listOf("HD_U_H7", "HD_U_H8")
+            "Quilt" -> listOf("0.23.0", "0.24.0")
+            else -> emptyList()
+        }
+    }
+
+    init {
+        loadVersions()
+    }
+
+    // Carga de versiones
+    fun loadVersions() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            val cached = versionManager.loadFromCache()
+            if (cached != null) {
+                _uiState.value = _uiState.value.copy(
+                    versions = cached,
+                    isLoading = false
+                )
+            }
+
+            if (!versionManager.isInternetAvailable()) {
+                if (cached == null) _uiState.value = _uiState.value.copy(isLoading = false)
+                _effects.emit(VersionsEffect.ShowSnackbar("Sin conexión. Mostrando caché."))
+                return@launch
+            }
+
+            val result = versionManager.fetchVersions()
+            result.onSuccess { list ->
+                _uiState.value = _uiState.value.copy(
+                    versions = list,
+                    isLoading = false
+                )
+            }.onFailure {
+                if (_uiState.value.versions.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+                _effects.emit(VersionsEffect.ShowSnackbar("Error al cargar versiones."))
+            }
+        }
+    }
+
+    // Descarga
+    fun downloadVersion(versionId: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                downloading = true,
+                downloadStatus = "Iniciando..."
+            )
+            versionManager.downloadVersion(versionId) { status ->
+                _uiState.value = _uiState.value.copy(downloadStatus = status)
+            }
+            _uiState.value = _uiState.value.copy(downloading = false)
+        }
+    }
+
+    // Filtros y búsqueda
+    fun updateFilter(filter: String) {
+        _uiState.value = _uiState.value.copy(selectedFilter = filter)
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
+    }
+
+    fun selectVersion(versionId: String) {
+        viewModelScope.launch {
+            if (isVersionInstalled(versionId)) {
+                _selectedVersion.value = VersionSelection(versionId, null, null)
+                _isBottomSheetOpen.value = false
+                _effects.emit(VersionsEffect.ShowSnackbar("Versión $versionId ya instalada"))
+                return@launch
+            }
+            _selectedVersion.value = VersionSelection(versionId)
+            _isBottomSheetOpen.value = true
+        }
+    }
+
+    fun updateLoader(loader: String?) {
+        val current = _selectedVersion.value ?: return
+        _selectedVersion.value = current.copy(
+            loader = if (loader == "Vanilla") null else loader,
+            loaderVersion = null
+        )
+    }
+
+    fun updateLoaderVersion(loaderVersion: String) {
+        val current = _selectedVersion.value ?: return
+        _selectedVersion.value = current.copy(loaderVersion = loaderVersion)
+    }
+
+    fun confirmSelection() {
+        viewModelScope.launch {
+            val selection = _selectedVersion.value
+            if (selection != null) {
+                if (!isVersionInstalled(selection.versionId)) {
+                    downloadVersion(selection.versionId)
+                }
+            }
+            _isBottomSheetOpen.value = false
+        }
+    }
+
+    fun cancelSelection() {
+        viewModelScope.launch {
+            _isBottomSheetOpen.value = false
+            _selectedVersion.value = null
+        }
+    }
+
+    fun isVersionInstalled(versionId: String): Boolean {
+        return versionManager.isVersionInstalled(versionId)
+    }
+
+    fun launchGame() {
+        viewModelScope.launch {
+            val selection = _selectedVersion.value
+            if (selection == null) {
+                _effects.emit(VersionsEffect.ShowSnackbar("Selecciona una versión primero"))
+                return@launch
+            }
+            if (!isVersionInstalled(selection.versionId)) {
+                _effects.emit(VersionsEffect.ShowSnackbar("La versión no está instalada. Descárgala primero."))
+                return@launch
+            }
+            // Aquí irá la integración con PojavLauncher más adelante
+            _effects.emit(VersionsEffect.ShowSnackbar("✅ ${selection.displayName()} está instalada. Listo para iniciar."))
+        }
+    }
+}
+
+data class VersionSelection(
+    val versionId: String,
+    val loader: String? = null,
+    val loaderVersion: String? = null
+) {
+    fun displayName(): String {
+        return if (loader != null && loaderVersion != null) {
+            "$versionId + $loader $loaderVersion"
+        } else {
+            versionId
+        }
+    }
+}
+
+data class VersionsUiState(
+    val versions: List<Pair<String, String>> = emptyList(),
+    val isLoading: Boolean = false,
+    val selectedFilter: String = "ALL",
+    val searchQuery: String = "",
+    val downloading: Boolean = false,
+    val downloadStatus: String = ""
+)
+
+sealed class VersionsEffect {
+    data class ShowSnackbar(val message: String) : VersionsEffect()
+}
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/ui/theme/Color.kt
+========================================
+
+package com.miempresa.mclauncher.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Paleta Cyberpunk definitiva para LucyMC
+val NeonGreen = Color(0xFF00FF9F)
+val CyberCyan = Color(0xFF00B8FF)
+val CyberDark = Color(0xFF0A0B10)
+val CyberSurface = Color(0xFF12131C)
+val CyberPanel = Color(0xFF1A1C28)
+
+// Para mantener compatibilidad con Theme.kt
+val CyanNeon = NeonGreen
+val BlueElectric = CyberCyan
+val BackgroundDark = CyberDark
+val SurfaceDark = CyberSurface
+val CardBorder = CyberPanel
+val TextPrimary = Color(0xFFFFFFFF)
+val TextSecondary = Color(0xFF8A8E9B)
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/java/com/miempresa/mclauncher/ui/theme/Theme.kt
+========================================
+
+package com.miempresa.mclauncher.ui.theme
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+
+private val LucyMcColorScheme = darkColorScheme(
+    primary = CyanNeon,
+    secondary = BlueElectric,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onPrimary = BackgroundDark,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary,
+    onSecondary = TextPrimary
+)
+
+@Composable
+fun LucyMcTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = LucyMcColorScheme,
+        content = content
+    )
+}
+
+
+========================================
+ARCHIVO: /data/data/com.termux/files/home/mclauncher/app/src/main/res/values/strings.xml
+========================================
+
+<resources>
+    <string name="app_name">LucyMC</string>
+</resources>
+
+
+========================================
+RESUMEN GENERADO. FIN.
+========================================
