@@ -37,3 +37,10 @@ val CyberPanel = BackgroundElevated
 val CyanNeon = AccentPrimary
 val BlueElectric = AccentSecondary
 val CardBorder = BorderSubtle
+
+// Aliases de color para la UI
+val TextOnDark = TextPrimary
+val TextMutedColor = TextMuted
+val StatusOk = StatusOnline
+val StatusError = StatusOffline
+val StatusWarn = StatusWarning

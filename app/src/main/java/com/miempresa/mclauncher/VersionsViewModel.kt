@@ -1,5 +1,8 @@
 package com.miempresa.mclauncher
 
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -9,10 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class VersionsViewModel(
-    private val versionManager: VersionManager
+    private val versionManager: VersionManager,
+    private val context: Context? = null
 ) : ViewModel() {
 
-    // Estados
     private val _uiState = MutableStateFlow(VersionsUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -22,19 +25,17 @@ class VersionsViewModel(
     private val _isBottomSheetOpen = MutableStateFlow(false)
     val isBottomSheetOpen = _isBottomSheetOpen.asStateFlow()
 
-    // Efectos (snackbars)
     private val _effects = MutableSharedFlow<VersionsEffect>()
     val effects = _effects.asSharedFlow()
 
-    // Loaders disponibles
     val availableLoaders = listOf("Vanilla", "Fabric", "Forge", "OptiFine", "Quilt")
 
     fun getLoaderVersions(loader: String, mcVersion: String): List<String> {
         return when (loader) {
-            "Fabric" -> listOf("0.15.11", "0.16.0", "0.16.2")
-            "Forge" -> listOf("47.2.0", "48.0.1", "49.0.0")
+            "Fabric" -> listOf("0.16.2", "0.16.1", "0.16.0", "0.15.11")
+            "Forge" -> listOf("47.3.0", "47.2.0", "47.1.0")
             "OptiFine" -> listOf("HD_U_H7", "HD_U_H8")
-            "Quilt" -> listOf("0.23.0", "0.24.0")
+            "Quilt" -> listOf("0.24.0", "0.23.0")
             else -> emptyList()
         }
     }
@@ -43,7 +44,6 @@ class VersionsViewModel(
         loadVersions()
     }
 
-    // Carga de versiones
     fun loadVersions() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
@@ -77,21 +77,31 @@ class VersionsViewModel(
         }
     }
 
-    // Descarga
     fun downloadVersion(versionId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 downloading = true,
-                downloadStatus = "Iniciando..."
+                downloadProgress = VersionManager.DownloadProgress("INIT", 0, 1, "Iniciando...")
             )
-            versionManager.downloadVersion(versionId) { status ->
-                _uiState.value = _uiState.value.copy(downloadStatus = status)
+
+            versionManager.downloadVersion(versionId) { progress ->
+                _uiState.value = _uiState.value.copy(downloadProgress = progress)
             }
-            _uiState.value = _uiState.value.copy(downloading = false)
+
+            val finalProgress = _uiState.value.downloadProgress
+            _uiState.value = _uiState.value.copy(
+                downloading = false,
+                downloadProgress = null
+            )
+
+            if (finalProgress?.phase == "COMPLETE") {
+                _effects.emit(VersionsEffect.ShowSnackbar(finalProgress.detail))
+            } else {
+                _effects.emit(VersionsEffect.ShowSnackbar(finalProgress?.detail ?: "Error desconocido"))
+            }
         }
     }
 
-    // Filtros y búsqueda
     fun updateFilter(filter: String) {
         _uiState.value = _uiState.value.copy(selectedFilter = filter)
     }
@@ -149,7 +159,15 @@ class VersionsViewModel(
         return versionManager.isVersionInstalled(versionId)
     }
 
-    fun launchGame() {
+    fun deleteVersion(versionId: String) {
+        viewModelScope.launch {
+            if (versionManager.deleteVersion(versionId)) {
+                _effects.emit(VersionsEffect.ShowSnackbar("Versión $versionId eliminada"))
+            }
+        }
+    }
+
+    fun launchGame(ramMb: Int, username: String) {
         viewModelScope.launch {
             val selection = _selectedVersion.value
             if (selection == null) {
@@ -160,8 +178,37 @@ class VersionsViewModel(
                 _effects.emit(VersionsEffect.ShowSnackbar("La versión no está instalada. Descárgala primero."))
                 return@launch
             }
-            // Aquí irá la integración con PojavLauncher más adelante
-            _effects.emit(VersionsEffect.ShowSnackbar("✅ ${selection.displayName()} está instalada. Listo para iniciar."))
+
+            val intent = versionManager.launchGame(selection.versionId, username, ramMb)
+            if (intent != null) {
+                try {
+                    context?.startActivity(intent)
+                    _effects.emit(VersionsEffect.ShowSnackbar("Iniciando ${selection.displayName()}..."))
+                } catch (e: Exception) {
+                    _effects.emit(VersionsEffect.ShowSnackbar(
+                        "PojavLauncher no encontrado. Instálalo desde F-Droid."
+                    ))
+                }
+            } else {
+                _effects.emit(VersionsEffect.ShowSnackbar(
+                    "Error al preparar el lanzamiento. Reintenta la instalación."
+                ))
+            }
+        }
+    }
+
+    fun launchGameSimple() {
+        viewModelScope.launch {
+            val selection = _selectedVersion.value
+            if (selection == null) {
+                _effects.emit(VersionsEffect.ShowSnackbar("Selecciona una versión primero"))
+                return@launch
+            }
+            if (!isVersionInstalled(selection.versionId)) {
+                _effects.emit(VersionsEffect.ShowSnackbar("La versión no está instalada. Descárgala primero."))
+                return@launch
+            }
+            _effects.emit(VersionsEffect.ShowSnackbar("✅ ${selection.displayName()} está listo para jugar"))
         }
     }
 }
@@ -186,7 +233,7 @@ data class VersionsUiState(
     val selectedFilter: String = "ALL",
     val searchQuery: String = "",
     val downloading: Boolean = false,
-    val downloadStatus: String = ""
+    val downloadProgress: VersionManager.DownloadProgress? = null
 )
 
 sealed class VersionsEffect {

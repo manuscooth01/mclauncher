@@ -72,7 +72,7 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
     val versionManager = remember(filesDir, context) { VersionManager(filesDir, context) }
 
     val versionsViewModel: VersionsViewModel = viewModel(
-        factory = VersionsViewModelFactory(versionManager)
+        factory = VersionsViewModelFactory(versionManager, context)
     )
     val settingsViewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModelFactory(settingsManager)
@@ -159,11 +159,14 @@ fun MainNavigationContainer(filesDir: File, context: Context) {
     }
 }
 
-class VersionsViewModelFactory(private val versionManager: VersionManager) : androidx.lifecycle.ViewModelProvider.Factory {
+class VersionsViewModelFactory(
+    private val versionManager: VersionManager,
+    private val context: Context
+) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(VersionsViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return VersionsViewModel(versionManager) as T
+            return VersionsViewModel(versionManager, context) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
@@ -243,9 +246,9 @@ fun VersionsScreen(
                             .size(12.dp)
                             .background(
                                 when {
-                                    uiState.isLoading -> Color.Yellow
-                                    uiState.downloading -> Color.Yellow
-                                    else -> Color.Green
+                                    uiState.isLoading -> StatusWarn
+                                    uiState.downloading -> StatusWarn
+                                    else -> StatusOk
                                 },
                                 shape = RoundedCornerShape(50)
                             )
@@ -256,7 +259,7 @@ fun VersionsScreen(
         bottomBar = {
             LaunchFooter(
                 selectedVersion = selectedVersion,
-                onLaunch = { viewModel.launchGame() }
+                onLaunch = { viewModel.launchGameSimple() }
             )
         }
     ) { padding ->
@@ -300,8 +303,8 @@ fun VersionsScreen(
                     },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = TextOnDark,
+                        unfocusedTextColor = TextOnDark,
                         focusedBorderColor = CyberCyan,
                         unfocusedBorderColor = CyberSurface,
                         focusedContainerColor = CyberPanel,
@@ -320,7 +323,7 @@ fun VersionsScreen(
                         val accent = when (option) {
                             "RELEASES" -> NeonGreen
                             "SNAPSHOTS" -> CyberCyan
-                            else -> Color.White
+                            else -> TextOnDark
                         }
                         Button(
                             onClick = { viewModel.updateFilter(option) },
@@ -369,13 +372,26 @@ fun VersionsScreen(
                 }
             }
 
-            if (uiState.downloadStatus.isNotEmpty()) {
-                Text(
-                    text = uiState.downloadStatus,
-                    fontSize = 10.sp,
-                    color = NeonGreen,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
+            val downloadProgress = uiState.downloadProgress
+            if (downloadProgress != null) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    LinearProgressIndicator(
+                        progress = {
+                            if (downloadProgress.total > 0)
+                                downloadProgress.current.toFloat() / downloadProgress.total
+                            else 0f
+                        },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = NeonGreen,
+                        trackColor = CyberSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "[${downloadProgress.phase}] ${downloadProgress.detail}",
+                        fontSize = 9.sp,
+                        color = CyberCyan
+                    )
+                }
             }
         }
     }
@@ -416,11 +432,11 @@ fun VersionGridCard(
             .shadow(elevation = 8.dp, shape = RoundedCornerShape(4.dp), clip = false)
             .clickable { onCardClick() },
         colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.08f)
+            containerColor = TextOnDark.copy(alpha = 0.08f)
         ),
         border = BorderStroke(
             1.dp,
-            Color.White.copy(alpha = 0.3f)
+            TextOnDark.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(4.dp)
     ) {
@@ -434,7 +450,7 @@ fun VersionGridCard(
                 text = versionId,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = TextOnDark
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -473,13 +489,13 @@ fun LaunchFooter(
     onLaunch: () -> Unit
 ) {
     Surface(
-        color = Color.White.copy(alpha = 0.08f),
+        color = TextOnDark.copy(alpha = 0.08f),
         tonalElevation = 0.dp,
         shape = RoundedCornerShape(4.dp),
         modifier = Modifier
             .height(72.dp)
             .shadow(elevation = 8.dp, shape = RoundedCornerShape(4.dp), clip = false)
-            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)), shape = RoundedCornerShape(4.dp))
+            .border(BorderStroke(1.dp, TextOnDark.copy(alpha = 0.3f)), shape = RoundedCornerShape(4.dp))
     ) {
         Row(
             modifier = Modifier
@@ -493,7 +509,7 @@ fun LaunchFooter(
                     text = if (selectedVersion != null) selectedVersion.displayName() else "SELECCIONA UNA VERSIÓN",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (selectedVersion != null) Color.White else CyberCyan.copy(alpha = 0.5f)
+                    color = if (selectedVersion != null) TextOnDark else CyberCyan.copy(alpha = 0.5f)
                 )
                 if (selectedVersion != null) {
                     Text(
@@ -555,7 +571,7 @@ fun LoaderSelectionSheet(
             text = "VERSIÓN ${versionSelection.versionId}",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = TextOnDark,
             letterSpacing = 2.sp
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -666,6 +682,12 @@ fun LoaderSelectionSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModpacksScreen() {
+    var modpackName by remember { mutableStateOf("") }
+    var modpacks by remember { mutableStateOf(listOf("Fabric-1.20.1", "Forge-1.19.2", "Vanilla-1.21")) }
+    var activeModpack by remember { mutableStateOf("Fabric-1.20.1") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
         containerColor = CyberDark,
         topBar = {
@@ -673,27 +695,117 @@ fun ModpacksScreen() {
                 title = { Text("LucyMC // MODPACKS_ENGINE", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = CyberCyan)
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Card(modifier = Modifier.weight(1f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberSurface), border = BorderStroke(1.dp, CyberCyan.copy(alpha = 0.2f)), shape = RoundedCornerShape(2.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CyberSurface),
+                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text("MODPACK ACTIVO", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Fabric-Loader-1.20.1", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("ESTADO: EN LA LÍNEA", fontSize = 9.sp, color = NeonGreen)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(activeModpack, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextOnDark)
+                    Text("ESTADO: EN LA LINEA", fontSize = 9.sp, color = StatusOk)
                 }
             }
-            Card(modifier = Modifier.weight(1.2f).fillMaxHeight(), colors = CardDefaults.cardColors(containerColor = CyberPanel), border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.15f)), shape = RoundedCornerShape(2.dp)) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("CREAR NUEVO MODPACK", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
-                    OutlinedTextField(
-                        value = "", onValueChange = {}, label = { Text("NOMBRE", color = CyberCyan.copy(alpha = 0.6f)) },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonGreen, unfocusedBorderColor = CyberSurface),
-                        modifier = Modifier.fillMaxWidth().height(48.dp), singleLine = true
-                    )
-                    Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(1.dp)) {
-                        Text("GENERAR MODPACK", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 11.sp)
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("CREAR NUEVO MODPACK", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = modpackName,
+                    onValueChange = { modpackName = it },
+                    placeholder = { Text("NOMBRE", color = CyberCyan.copy(alpha = 0.6f), fontSize = 11.sp) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextOnDark,
+                        unfocusedTextColor = TextOnDark,
+                        focusedBorderColor = NeonGreen,
+                        unfocusedBorderColor = CyberSurface,
+                        focusedContainerColor = CyberPanel,
+                        unfocusedContainerColor = CyberPanel
+                    ),
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    singleLine = true,
+                    shape = RoundedCornerShape(2.dp)
+                )
+                Button(
+                    onClick = {
+                        if (modpackName.isNotBlank()) {
+                            modpacks = modpacks + modpackName
+                            scope.launch { snackbarHostState.showSnackbar("Modpack '$modpackName' creado") }
+                            modpackName = ""
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.height(48.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Text("CREAR", color = CyberDark, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("MODPACKS DISPONIBLES", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CyberCyan)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(modpacks) { pack ->
+                    val isActive = pack == activeModpack
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isActive) NeonGreen.copy(alpha = 0.1f) else CyberSurface
+                        ),
+                        border = BorderStroke(1.dp, if (isActive) NeonGreen else CyberCyan.copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(pack, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextOnDark)
+                                if (isActive) {
+                                    Text("ACTIVO", fontSize = 8.sp, fontWeight = FontWeight.Black, color = StatusOk, letterSpacing = 1.sp)
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                if (!isActive) {
+                                    Button(
+                                        onClick = {
+                                            activeModpack = pack
+                                            scope.launch { snackbarHostState.showSnackbar("Modpack '$pack' activado") }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = CyberCyan),
+                                        shape = RoundedCornerShape(1.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("ACTIVAR", fontSize = 9.sp, color = CyberDark, fontWeight = FontWeight.Black)
+                                    }
+                                }
+                                Button(
+                                    onClick = {
+                                        modpacks = modpacks - pack
+                                        if (isActive && modpacks.isNotEmpty()) activeModpack = modpacks.first()
+                                        scope.launch { snackbarHostState.showSnackbar("Modpack '$pack' eliminado") }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = StatusError.copy(alpha = 0.8f)),
+                                    shape = RoundedCornerShape(1.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("X", fontSize = 9.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -703,8 +815,16 @@ fun ModpacksScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModsScreen() {
-    val mockMods = remember { listOf("Sodium-Fabric-1.20.1.jar", "Iris-Shaders-1.20.1.jar", "Lithium-Optimization.jar") }
+fun ModsScreen(context: Context? = null) {
+    var mods by remember { mutableStateOf(listOf(
+        "Sodium-Fabric-1.20.1.jar",
+        "Iris-Shaders-1.20.1.jar",
+        "Lithium-Optimization.jar",
+        "Fabric-API-1.20.1.jar"
+    )) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
         containerColor = CyberDark,
         topBar = {
@@ -712,18 +832,44 @@ fun ModsScreen() {
                 title = { Text("LucyMC // MODS_INJECTOR", fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 2.sp) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CyberDark, titleContentColor = NeonGreen)
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(10.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text("ARCHIVOS .JAR EN /mods", fontSize = 11.sp, fontWeight = FontWeight.Black, color = CyberCyan)
-                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = CyberCyan), shape = RoundedCornerShape(1.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
-                    Text("ADD_MOD", fontSize = 10.sp, color = CyberDark, fontWeight = FontWeight.Black)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Button(
+                        onClick = {
+                            val newMod = "Custom-Mod-${mods.size + 1}.jar"
+                            mods = mods + newMod
+                            scope.launch { snackbarHostState.showSnackbar("Mod '$newMod' agregado") }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CyberCyan),
+                        shape = RoundedCornerShape(1.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                    ) {
+                        Text("ADD_MOD", fontSize = 10.sp, color = CyberDark, fontWeight = FontWeight.Black)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("MOD", modifier = Modifier.weight(1f), fontSize = 9.sp, fontWeight = FontWeight.Black, color = CyberCyan, letterSpacing = 1.sp)
+                Text("ESTADO", fontSize = 9.sp, fontWeight = FontWeight.Black, color = CyberCyan, letterSpacing = 1.sp)
+                Text("ACCION", fontSize = 9.sp, fontWeight = FontWeight.Black, color = CyberCyan, letterSpacing = 1.sp)
+            }
+
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(mockMods) { mod ->
+                items(mods) { mod ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = CyberSurface),
@@ -732,10 +878,22 @@ fun ModsScreen() {
                     ) {
                         Row(
                             modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(mod, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
-                            Text("LOADED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = NeonGreen)
+                            Text(mod, modifier = Modifier.weight(1f), fontSize = 11.sp, color = TextOnDark, fontWeight = FontWeight.Medium)
+                            Text("LOADED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = StatusOk, modifier = Modifier.width(60.dp))
+                            Button(
+                                onClick = {
+                                    mods = mods - mod
+                                    scope.launch { snackbarHostState.showSnackbar("Mod '$mod' eliminado") }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = StatusError.copy(alpha = 0.8f)),
+                                shape = RoundedCornerShape(1.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Text("DEL", fontSize = 8.sp, fontWeight = FontWeight.Black)
+                            }
                         }
                     }
                 }
@@ -766,7 +924,7 @@ fun AccountScreen(settingsManager: SettingsManager) {
                 Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Filled.AccountCircle, null, modifier = Modifier.size(40.dp), tint = if (isLoggedIn) NeonGreen else CyberCyan.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.White)
+                    Text(text = activeUser.uppercase(), fontWeight = FontWeight.Black, fontSize = 14.sp, color = TextOnDark)
                     Text(text = "AUTH: $sessionType", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isLoggedIn) NeonGreen else CyberCyan)
                 }
             }
@@ -846,7 +1004,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             OutlinedTextField(value = gamePath, onValueChange = {}, modifier = Modifier.fillMaxWidth(), readOnly = true)
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = Color.White)
+                Text("MODO DESARROLLADOR LOGS", fontSize = 12.sp, color = TextOnDark)
                 Switch(
                     checked = isDevMode,
                     onCheckedChange = { viewModel.toggleDevMode() },
