@@ -9,8 +9,16 @@ android {
         applicationId "com.miempresa.mclauncher"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
     }
 
     buildFeatures {
@@ -30,9 +38,9 @@ android {
         jvmTarget = '1.8'
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
+    packaging {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
     }
 }
@@ -48,7 +56,6 @@ dependencies {
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.navigation:navigation-compose:2.7.5'
-    // Iconos extendidos (necesarios para FolderOpen, Widgets, etc.)
     implementation 'androidx.compose.material:material-icons-extended:1.5.0'
     implementation 'androidx.compose.foundation:foundation:1.5.0'
 }

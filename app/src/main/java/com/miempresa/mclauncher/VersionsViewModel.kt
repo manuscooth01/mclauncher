@@ -1,14 +1,13 @@
 package com.miempresa.mclauncher
 
 import android.content.Context
-import android.content.Intent
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class VersionsViewModel(
@@ -19,18 +18,12 @@ class VersionsViewModel(
     private val _uiState = MutableStateFlow(VersionsUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _selectedVersion = MutableStateFlow<VersionSelection?>(null)
-    val selectedVersion = _selectedVersion.asStateFlow()
-
-    private val _isBottomSheetOpen = MutableStateFlow(false)
-    val isBottomSheetOpen = _isBottomSheetOpen.asStateFlow()
-
     private val _effects = MutableSharedFlow<VersionsEffect>()
     val effects = _effects.asSharedFlow()
 
     val availableLoaders = listOf("Vanilla", "Fabric", "Forge", "OptiFine", "Quilt")
 
-    fun getLoaderVersions(loader: String, mcVersion: String): List<String> {
+    fun getLoaderVersions(loader: String): List<String> {
         return when (loader) {
             "Fabric" -> listOf("0.16.2", "0.16.1", "0.16.0", "0.15.11")
             "Forge" -> listOf("47.3.0", "47.2.0", "47.1.0")
@@ -46,31 +39,37 @@ class VersionsViewModel(
 
     fun loadVersions() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isLoading = true) }
 
             val cached = versionManager.loadFromCache()
             if (cached != null) {
-                _uiState.value = _uiState.value.copy(
-                    versions = cached,
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        versions = cached,
+                        installedVersions = versionManager.getInstalledVersionIds(),
+                        isLoading = false
+                    )
+                }
             }
 
             if (!versionManager.isInternetAvailable()) {
-                if (cached == null) _uiState.value = _uiState.value.copy(isLoading = false)
+                if (cached == null) _uiState.update { it.copy(isLoading = false) }
                 _effects.emit(VersionsEffect.ShowSnackbar("Sin conexión. Mostrando caché."))
                 return@launch
             }
 
             val result = versionManager.fetchVersions()
             result.onSuccess { list ->
-                _uiState.value = _uiState.value.copy(
-                    versions = list,
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        versions = list,
+                        installedVersions = versionManager.getInstalledVersionIds(),
+                        isLoading = false
+                    )
+                }
             }.onFailure {
                 if (_uiState.value.versions.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiState.update { it.copy(isLoading = false) }
                 }
                 _effects.emit(VersionsEffect.ShowSnackbar("Error al cargar versiones."))
             }
@@ -79,20 +78,26 @@ class VersionsViewModel(
 
     fun downloadVersion(versionId: String) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                downloading = true,
-                downloadProgress = VersionManager.DownloadProgress("INIT", 0, 1, "Iniciando...")
-            )
+            _uiState.update {
+                it.copy(
+                    downloading = true,
+                    selectedVersionId = versionId,
+                    downloadProgress = VersionManager.DownloadProgress("INIT", 0, 1, "Iniciando...")
+                )
+            }
 
             versionManager.downloadVersion(versionId) { progress ->
-                _uiState.value = _uiState.value.copy(downloadProgress = progress)
+                _uiState.update { it.copy(downloadProgress = progress) }
             }
 
             val finalProgress = _uiState.value.downloadProgress
-            _uiState.value = _uiState.value.copy(
-                downloading = false,
-                downloadProgress = null
-            )
+            _uiState.update {
+                it.copy(
+                    downloading = false,
+                    downloadProgress = null,
+                    installedVersions = versionManager.getInstalledVersionIds()
+                )
+            }
 
             if (finalProgress?.phase == "COMPLETE") {
                 _effects.emit(VersionsEffect.ShowSnackbar(finalProgress.detail))
@@ -103,126 +108,102 @@ class VersionsViewModel(
     }
 
     fun updateFilter(filter: String) {
-        _uiState.value = _uiState.value.copy(selectedFilter = filter)
+        _uiState.update { it.copy(selectedFilter = filter) }
     }
 
     fun updateSearchQuery(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun selectVersion(versionId: String) {
         viewModelScope.launch {
-            if (isVersionInstalled(versionId)) {
-                _selectedVersion.value = VersionSelection(versionId, null, null)
-                _isBottomSheetOpen.value = false
+            if (versionManager.isVersionInstalled(versionId)) {
+                _uiState.update {
+                    it.copy(
+                        selectedVersionId = versionId,
+                        isBottomSheetOpen = false,
+                        selectedLoader = null,
+                        selectedLoaderVersion = null
+                    )
+                }
                 _effects.emit(VersionsEffect.ShowSnackbar("Versión $versionId ya instalada"))
                 return@launch
             }
-            _selectedVersion.value = VersionSelection(versionId)
-            _isBottomSheetOpen.value = true
+            _uiState.update {
+                it.copy(
+                    selectedVersionId = versionId,
+                    isBottomSheetOpen = true,
+                    selectedLoader = null,
+                    selectedLoaderVersion = null
+                )
+            }
         }
     }
 
     fun updateLoader(loader: String?) {
-        val current = _selectedVersion.value ?: return
-        _selectedVersion.value = current.copy(
-            loader = if (loader == "Vanilla") null else loader,
-            loaderVersion = null
-        )
+        _uiState.update {
+            it.copy(
+                selectedLoader = if (loader == "Vanilla") null else loader,
+                selectedLoaderVersion = null
+            )
+        }
     }
 
     fun updateLoaderVersion(loaderVersion: String) {
-        val current = _selectedVersion.value ?: return
-        _selectedVersion.value = current.copy(loaderVersion = loaderVersion)
+        _uiState.update { it.copy(selectedLoaderVersion = loaderVersion) }
     }
 
     fun confirmSelection() {
         viewModelScope.launch {
-            val selection = _selectedVersion.value
-            if (selection != null) {
-                if (!isVersionInstalled(selection.versionId)) {
-                    downloadVersion(selection.versionId)
-                }
+            val versionId = _uiState.value.selectedVersionId
+            if (versionId != null && !versionManager.isVersionInstalled(versionId)) {
+                downloadVersion(versionId)
             }
-            _isBottomSheetOpen.value = false
+            _uiState.update { it.copy(isBottomSheetOpen = false) }
         }
     }
 
     fun cancelSelection() {
-        viewModelScope.launch {
-            _isBottomSheetOpen.value = false
-            _selectedVersion.value = null
+        _uiState.update {
+            it.copy(
+                isBottomSheetOpen = false,
+                selectedVersionId = null,
+                selectedLoader = null,
+                selectedLoaderVersion = null
+            )
         }
-    }
-
-    fun isVersionInstalled(versionId: String): Boolean {
-        return versionManager.isVersionInstalled(versionId)
     }
 
     fun deleteVersion(versionId: String) {
         viewModelScope.launch {
-            if (versionManager.deleteVersion(versionId)) {
-                _effects.emit(VersionsEffect.ShowSnackbar("Versión $versionId eliminada"))
-            }
+            versionManager.deleteVersion(versionId)
+            _uiState.update { it.copy(installedVersions = versionManager.getInstalledVersionIds()) }
+            _effects.emit(VersionsEffect.ShowSnackbar("Versión $versionId eliminada"))
         }
     }
 
     fun launchGame(ramMb: Int, username: String) {
         viewModelScope.launch {
-            val selection = _selectedVersion.value
-            if (selection == null) {
+            val versionId = _uiState.value.selectedVersionId
+            if (versionId == null) {
                 _effects.emit(VersionsEffect.ShowSnackbar("Selecciona una versión primero"))
                 return@launch
             }
-            if (!isVersionInstalled(selection.versionId)) {
-                _effects.emit(VersionsEffect.ShowSnackbar("La versión no está instalada. Descárgala primero."))
+            if (!versionManager.isVersionInstalled(versionId)) {
+                _effects.emit(VersionsEffect.ShowSnackbar("Descárgala primero"))
                 return@launch
             }
-
-            val intent = versionManager.launchGame(selection.versionId, username, ramMb)
+            val intent = versionManager.launchGame(versionId, username, ramMb)
             if (intent != null) {
                 try {
                     context?.startActivity(intent)
-                    _effects.emit(VersionsEffect.ShowSnackbar("Iniciando ${selection.displayName()}..."))
-                } catch (e: Exception) {
-                    _effects.emit(VersionsEffect.ShowSnackbar(
-                        "PojavLauncher no encontrado. Instálalo desde F-Droid."
-                    ))
+                    _effects.emit(VersionsEffect.ShowSnackbar("Iniciando $versionId..."))
+                } catch (_: Exception) {
+                    _effects.emit(VersionsEffect.ShowSnackbar("PojavLauncher no encontrado"))
                 }
             } else {
-                _effects.emit(VersionsEffect.ShowSnackbar(
-                    "Error al preparar el lanzamiento. Reintenta la instalación."
-                ))
+                _effects.emit(VersionsEffect.ShowSnackbar("Error al preparar lanzamiento"))
             }
-        }
-    }
-
-    fun launchGameSimple() {
-        viewModelScope.launch {
-            val selection = _selectedVersion.value
-            if (selection == null) {
-                _effects.emit(VersionsEffect.ShowSnackbar("Selecciona una versión primero"))
-                return@launch
-            }
-            if (!isVersionInstalled(selection.versionId)) {
-                _effects.emit(VersionsEffect.ShowSnackbar("La versión no está instalada. Descárgala primero."))
-                return@launch
-            }
-            _effects.emit(VersionsEffect.ShowSnackbar("✅ ${selection.displayName()} está listo para jugar"))
-        }
-    }
-}
-
-data class VersionSelection(
-    val versionId: String,
-    val loader: String? = null,
-    val loaderVersion: String? = null
-) {
-    fun displayName(): String {
-        return if (loader != null && loaderVersion != null) {
-            "$versionId + $loader $loaderVersion"
-        } else {
-            versionId
         }
     }
 }
@@ -233,7 +214,12 @@ data class VersionsUiState(
     val selectedFilter: String = "ALL",
     val searchQuery: String = "",
     val downloading: Boolean = false,
-    val downloadProgress: VersionManager.DownloadProgress? = null
+    val downloadProgress: VersionManager.DownloadProgress? = null,
+    val selectedVersionId: String? = null,
+    val isBottomSheetOpen: Boolean = false,
+    val selectedLoader: String? = null,
+    val selectedLoaderVersion: String? = null,
+    val installedVersions: Set<String> = emptySet()
 )
 
 sealed class VersionsEffect {
