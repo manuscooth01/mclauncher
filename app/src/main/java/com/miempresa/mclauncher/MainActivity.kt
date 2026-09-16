@@ -376,11 +376,9 @@ fun VersionsScreen(
             if (downloadProgress != null) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     LinearProgressIndicator(
-                        progress = {
-                            if (downloadProgress.total > 0)
-                                downloadProgress.current.toFloat() / downloadProgress.total
-                            else 0f
-                        },
+                        progress = if (downloadProgress.total > 0)
+                            downloadProgress.current.toFloat() / downloadProgress.total
+                        else 0f,
                         modifier = Modifier.fillMaxWidth().height(4.dp),
                         color = NeonGreen,
                         trackColor = CyberSurface

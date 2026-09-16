@@ -307,16 +307,6 @@ class VersionManager(private val filesDir: File, private val context: Context) {
                 }
             }
 
-            val osArray = jvmArgs.optJSONArray("os")
-            val filteredJvm = mutableListOf<String>()
-            for (i in 0 until jvmArgs.length()) {
-                val element = jvmArgs.get(i)
-                if (element is JSONObject) {
-                    val os = element.optJSONObject("os")
-                    if (os != null && os.optString("name") == "osx") continue
-                }
-            }
-
             profile.put("jvmArgs", JSONArray(jvmArgList))
         } else {
             val argsStr = versionJson.optString("minecraftArguments", "")
