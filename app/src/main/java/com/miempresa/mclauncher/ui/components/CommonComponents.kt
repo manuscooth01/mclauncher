@@ -1,6 +1,7 @@
 package com.miempresa.mclauncher.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -97,7 +98,7 @@ fun VersionGridCard(
 }
 
 @Composable
-fun DownloadProgressIndicator(progress: VersionManager.DownloadProgress?) {
+fun DownloadProgressIndicator(progress: com.miempresa.mclauncher.VersionManager.DownloadProgress?) {
     if (progress == null) return
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         LinearProgressIndicator(

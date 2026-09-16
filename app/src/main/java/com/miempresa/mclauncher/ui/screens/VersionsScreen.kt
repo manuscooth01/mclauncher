@@ -1,9 +1,8 @@
+@file:OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+
 package com.miempresa.mclauncher.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -23,10 +22,10 @@ import com.miempresa.mclauncher.*
 import com.miempresa.mclauncher.ui.components.DownloadProgressIndicator
 import com.miempresa.mclauncher.ui.components.VersionGridCard
 import com.miempresa.mclauncher.ui.theme.*
+import kotlinx.coroutines.launch
 
 private val FILTERS = listOf("ALL", "RELEASES", "SNAPSHOTS", "OLD_BETA", "OLD_ALPHA")
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionsScreen(viewModel: VersionsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
@@ -67,7 +66,6 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -83,27 +81,21 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .padding(end = 4.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = when {
-                                uiState.isLoading -> StatusWarn
-                                uiState.downloading -> StatusWarn
-                                else -> StatusOk
-                            },
-                            shape = RoundedCornerShape(50)
-                        ) {}
-                    }
+                    Surface(
+                        modifier = Modifier.size(8.dp),
+                        color = when {
+                            uiState.isLoading -> StatusWarn
+                            uiState.downloading -> StatusWarn
+                            else -> StatusOk
+                        },
+                        shape = RoundedCornerShape(50)
+                    ) {}
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = when {
                             uiState.downloading -> "DESCARGANDO"
                             uiState.isLoading -> "CARGANDO"
-                            else -> "EN LÍNEA"
+                            else -> "EN LINEA"
                         },
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -112,12 +104,11 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                 }
             }
 
-            // Search
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = viewModel::updateSearchQuery,
                 placeholder = {
-                    Text("Buscar versión...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Buscar version...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 },
                 leadingIcon = {
                     Icon(Icons.Filled.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -144,7 +135,6 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Filters
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -172,12 +162,6 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                             selectedContainerColor = accent,
                             selectedLabelColor = MaterialTheme.colorScheme.surface
                         ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = accent.copy(alpha = 0.3f),
-                            selectedBorderColor = accent,
-                            enabled = true,
-                            selected = isSelected
-                        ),
                         shape = RoundedCornerShape(8.dp)
                     )
                 }
@@ -185,10 +169,8 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Download progress
             DownloadProgressIndicator(uiState.downloadProgress)
 
-            // Version grid
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -213,7 +195,6 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         }
     }
 
-    // Bottom sheet
     if (uiState.isBottomSheetOpen && uiState.selectedVersionId != null) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.cancelSelection() },
@@ -256,7 +237,7 @@ fun LoaderSelectionSheet(
             .padding(20.dp)
     ) {
         Text(
-            text = "Versión $versionId",
+            text = "Version $versionId",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -279,12 +260,6 @@ fun LoaderSelectionSheet(
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = MaterialTheme.colorScheme.outline,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary,
-                        enabled = true,
-                        selected = isSelected
                     ),
                     shape = RoundedCornerShape(8.dp)
                 )
@@ -309,12 +284,6 @@ fun LoaderSelectionSheet(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.secondary,
                             selectedLabelColor = MaterialTheme.colorScheme.onSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = MaterialTheme.colorScheme.outline,
-                            selectedBorderColor = MaterialTheme.colorScheme.secondary,
-                            enabled = true,
-                            selected = isSelected
                         ),
                         shape = RoundedCornerShape(8.dp)
                     )

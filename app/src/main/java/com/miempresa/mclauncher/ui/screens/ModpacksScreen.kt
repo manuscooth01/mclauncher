@@ -13,8 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miempresa.mclauncher.ui.theme.*
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModpacksScreen() {
     var modpackName by remember { mutableStateOf("") }
@@ -41,7 +41,6 @@ fun ModpacksScreen() {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Active modpack card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -51,13 +50,12 @@ fun ModpacksScreen() {
                     Text("MODPACK ACTIVO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(activeModpack, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text("EN LA LÍNEA", fontSize = 10.sp, color = StatusOk, fontWeight = FontWeight.Bold)
+                    Text("EN LA LINEA", fontSize = 10.sp, color = StatusOk, fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Create new
             Text("CREAR NUEVO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -89,7 +87,6 @@ fun ModpacksScreen() {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // List
             Text("MODPACKS (${modpacks.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
 

@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miempresa.mclauncher.SettingsManager
 import com.miempresa.mclauncher.ui.theme.*
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(settingsManager: SettingsManager) {
     var usernameInput by remember { mutableStateOf("") }
@@ -43,7 +43,6 @@ fun AccountScreen(settingsManager: SettingsManager) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Profile card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -82,7 +81,7 @@ fun AccountScreen(settingsManager: SettingsManager) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("INICIAR SESIÓN", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("INICIAR SESION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
@@ -110,7 +109,7 @@ fun AccountScreen(settingsManager: SettingsManager) {
                             sessionType = "LOCAL"
                             isLoggedIn = true
                             usernameInput = ""
-                            scope.launch { snackbarHostState.showSnackbar("Sesión local activa") }
+                            scope.launch { snackbarHostState.showSnackbar("Sesion local activa") }
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -129,7 +128,7 @@ fun AccountScreen(settingsManager: SettingsManager) {
                             sessionType = "MICROSOFT"
                             isLoggedIn = true
                             usernameInput = ""
-                            scope.launch { snackbarHostState.showSnackbar("Sesión Microsoft activa") }
+                            scope.launch { snackbarHostState.showSnackbar("Sesion Microsoft activa") }
                         }
                     },
                     modifier = Modifier.weight(1f),
