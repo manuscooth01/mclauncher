@@ -43,10 +43,11 @@ class VersionsViewModel(
 
             val cached = versionManager.loadFromCache()
             if (cached != null) {
+                val installed = versionManager.getInstalledVersionIds()
                 _uiState.update {
                     it.copy(
                         versions = cached,
-                        installedVersions = versionManager.getInstalledVersionIds(),
+                        installedVersions = installed,
                         isLoading = false
                     )
                 }
@@ -60,10 +61,11 @@ class VersionsViewModel(
 
             val result = versionManager.fetchVersions()
             result.onSuccess { list ->
+                val installed = versionManager.getInstalledVersionIds()
                 _uiState.update {
                     it.copy(
                         versions = list,
-                        installedVersions = versionManager.getInstalledVersionIds(),
+                        installedVersions = installed,
                         isLoading = false
                     )
                 }
@@ -90,12 +92,16 @@ class VersionsViewModel(
                 _uiState.update { it.copy(downloadProgress = progress) }
             }
 
+            val installed = withContext(Dispatchers.IO) {
+                versionManager.getInstalledVersionIds()
+            }
+
             val finalProgress = _uiState.value.downloadProgress
             _uiState.update {
                 it.copy(
                     downloading = false,
                     downloadProgress = null,
-                    installedVersions = versionManager.getInstalledVersionIds()
+                    installedVersions = installed
                 )
             }
 
@@ -177,7 +183,8 @@ class VersionsViewModel(
     fun deleteVersion(versionId: String) {
         viewModelScope.launch {
             versionManager.deleteVersion(versionId)
-            _uiState.update { it.copy(installedVersions = versionManager.getInstalledVersionIds()) }
+            val installed = versionManager.getInstalledVersionIds()
+            _uiState.update { it.copy(installedVersions = installed) }
             _effects.emit(VersionsEffect.ShowSnackbar("Versión $versionId eliminada"))
         }
     }

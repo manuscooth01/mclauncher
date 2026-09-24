@@ -4,9 +4,9 @@ package com.miempresa.mclauncher.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -42,18 +42,20 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         }
     }
 
-    val filteredVersions = remember(uiState.versions, uiState.selectedFilter, uiState.searchQuery) {
-        var list = when (uiState.selectedFilter) {
-            "RELEASES" -> uiState.versions.filter { it.second == "release" }
-            "SNAPSHOTS" -> uiState.versions.filter { it.second == "snapshot" }
-            "OLD_BETA" -> uiState.versions.filter { it.second == "old_beta" }
-            "OLD_ALPHA" -> uiState.versions.filter { it.second == "old_alpha" }
-            else -> uiState.versions
+    val filteredVersions by remember(uiState) {
+        derivedStateOf {
+            var list = when (uiState.selectedFilter) {
+                "RELEASES" -> uiState.versions.filter { it.second == "release" }
+                "SNAPSHOTS" -> uiState.versions.filter { it.second == "snapshot" }
+                "OLD_BETA" -> uiState.versions.filter { it.second == "old_beta" }
+                "OLD_ALPHA" -> uiState.versions.filter { it.second == "old_alpha" }
+                else -> uiState.versions
+            }
+            if (uiState.searchQuery.isNotBlank()) {
+                list = list.filter { it.first.contains(uiState.searchQuery, ignoreCase = true) }
+            }
+            list.sortedByDescending { it.first }
         }
-        if (uiState.searchQuery.isNotBlank()) {
-            list = list.filter { it.first.contains(uiState.searchQuery, ignoreCase = true) }
-        }
-        list.sortedByDescending { it.first }
     }
 
     Scaffold(
@@ -178,11 +180,9 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp), // Reduced from 10.dp
-                    horizontalArrangement = Arrangement.spacedBy(6.dp) // Reduced from 10.dp
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(filteredVersions, key = { it.first }) { (id, type) ->
                         VersionGridCard(
@@ -256,6 +256,7 @@ fun LoaderSelectionSheet(
             availableLoaders.forEach { loader ->
                 val isSelected = selectedLoader == loader
                 FilterChip(
+                    key = loader,
                     selected = isSelected,
                     onClick = { onLoaderSelected(if (isSelected) null else loader) },
                     label = { Text(loader, fontSize = 12.sp) },
@@ -280,6 +281,7 @@ fun LoaderSelectionSheet(
                 loaderVersions.forEach { version ->
                     val isSelected = selectedLoaderVersion == version
                     FilterChip(
+                        key = version,
                         selected = isSelected,
                         onClick = { onLoaderVersionSelected(version) },
                         label = { Text(version, fontSize = 12.sp) },

@@ -147,12 +147,25 @@ class VersionManager(private val filesDir: File, appContext: Context) {
         return JSONObject(sb.toString())
     }
 
+    private suspend fun emitProgress(
+        onProgress: suspend (DownloadProgress) -> Unit,
+        progress: DownloadProgress,
+        lastEmitTime: MutableLong
+    ) {
+        val now = System.currentTimeMillis()
+        if (now - lastEmitTime.value >= 100 || progress.current == progress.total) {
+            onProgress(progress)
+            lastEmitTime.value = now
+        }
+    }
+
     suspend fun downloadVersion(
         versionId: String,
         onProgress: suspend (DownloadProgress) -> Unit
     ) = withContext(Dispatchers.IO) {
+        val lastEmitTime = MutableLong(0)
         try {
-            onProgress(DownloadProgress("MANIFEST", 0, 1, "Obteniendo manifiesto..."))
+            emitProgress(onProgress, DownloadProgress("MANIFEST", 0, 1, "Obteniendo manifiesto..."), lastEmitTime)
 
             val manifest = fetchJson(MANIFEST_URL)
             val versions = manifest.getJSONArray("versions")
@@ -167,7 +180,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
             }
 
             if (versionUrl.isEmpty()) {
-                onProgress(DownloadProgress("ERROR", 0, 1, "URL no encontrada"))
+                emitProgress(onProgress, DownloadProgress("ERROR", 0, 1, "URL no encontrada"), lastEmitTime)
                 return@withContext
             }
 
@@ -178,7 +191,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
             FileWriter(File(dir, "$versionId.json")).use { it.write(versionJson.toString()) }
 
             coroutineContext.ensureActive()
-            onProgress(DownloadProgress("CLIENT_JAR", 0, 1, "Descargando cliente..."))
+            emitProgress(onProgress, DownloadProgress("CLIENT_JAR", 0, 1, "Descargando cliente..."), lastEmitTime)
 
             val jarFile = File(dir, "$versionId.jar")
             downloadFile(versionJson.getJSONObject("downloads").getJSONObject("client").getString("url"), jarFile)
@@ -209,7 +222,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
                     }
                 }
                 libCount++
-                onProgress(DownloadProgress("LIBRARIES", libCount, totalLibs, "Librería $libCount/$totalLibs"))
+                emitProgress(onProgress, DownloadProgress("LIBRARIES", libCount, totalLibs, "Librería $libCount/$totalLibs"), lastEmitTime)
             }
 
             coroutineContext.ensureActive()
@@ -249,17 +262,19 @@ class VersionManager(private val filesDir: File, appContext: Context) {
                     }
                     assetCount++
                     if (assetCount % 50 == 0 || assetCount == totalAssets) {
-                        onProgress(DownloadProgress("ASSETS", assetCount, totalAssets, "Asset $assetCount/$totalAssets"))
+                        emitProgress(onProgress, DownloadProgress("ASSETS", assetCount, totalAssets, "Asset $assetCount/$totalAssets"), lastEmitTime)
                     }
                 }
             }
 
             generateLaunchProfile(versionId, versionJson)
-            onProgress(DownloadProgress("COMPLETE", 1, 1, "✅ $versionId instalado"))
+            emitProgress(onProgress, DownloadProgress("COMPLETE", 1, 1, "✅ $versionId instalado"), lastEmitTime)
         } catch (e: Exception) {
-            onProgress(DownloadProgress("ERROR", 0, 1, "❌ ${e.message ?: "Error desconocido"}"))
+            emitProgress(onProgress, DownloadProgress("ERROR", 0, 1, "❌ ${e.message ?: "Error desconocido"}"), lastEmitTime)
         }
     }
+
+    private class MutableLong(var value: Long)
 
     private fun generateLaunchProfile(versionId: String, versionJson: JSONObject) {
         val dir = File(filesDir, "versions/$versionId")
@@ -345,10 +360,10 @@ class VersionManager(private val filesDir: File, appContext: Context) {
         return jarFile.exists() && jarFile.length() > 0 && profileFile.exists()
     }
 
-    fun getInstalledVersionIds(): Set<String> {
+    suspend fun getInstalledVersionIds(): Set<String> = withContext(Dispatchers.IO) {
         val versionsDir = File(filesDir, "versions")
-        if (!versionsDir.exists()) return emptySet()
-        return versionsDir.listFiles()
+        if (!versionsDir.exists()) return@withContext emptySet()
+        versionsDir.listFiles()
             ?.filter { it.isDirectory && File(it, "${it.name}.jar").exists() }
             ?.map { it.name }
             ?.toSet()
