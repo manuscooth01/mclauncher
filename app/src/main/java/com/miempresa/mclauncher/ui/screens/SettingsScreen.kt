@@ -1,105 +1,78 @@
 package com.miempresa.mclauncher.ui.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.spacedBy
+import androidx.compose.material3.Button
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.miempresa.mclauncher.SettingsManager
 import com.miempresa.mclauncher.SettingsViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
-    val ram by viewModel.ramAllocation.collectAsState()
-    val isDevMode by viewModel.isDevMode.collectAsState()
-    val gamePath by viewModel.gamePath.collectAsState()
+    var ram by remember { mutableStateOf(viewModel.settingsManager.ramMb) }
+    var username by remember { mutableStateOf(viewModel.settingsManager.username) }
 
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("AJUSTES", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFFFF4444))
+
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("RAM (MB): $ram", fontSize = 16.sp, color = Color.White)
+            Slider(
+                value = ram.toFloat(),
+                onValueChange = { ram = it.roundToInt() },
+                valueRange = 512f..4096f,
+                steps = 12,
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.SliderDefaults.colors(activeTrackColor = Color(0xFF00FF00), inactiveTrackColor = Color(0xFF333333), thumbColor = Color(0xFF00FF00))
+            )
+        }
+
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Usuario", fontSize = 16.sp, color = Color.White)
+            androidx.compose.material3.OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFF333333),
+                    focusedBorderColor = Color(0xFF00FF00),
+                    unfocusedContainerColor = Color(0xFF1A1A1A),
+                    focusedContainerColor = Color(0xFF1A1A1A),
+                    unfocusedTextColor = Color.White,
+                    focusedTextColor = Color.White
+                )
+            )
+        }
+
+        Button(
+            onClick = {
+                viewModel.settingsManager.ramMb = ram.coerceIn(512, 4096)
+                viewModel.settingsManager.username = username
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF00FF00), contentColor = Color.Black)
         ) {
-            Text(
-                text = "AJUSTES",
-                fontWeight = FontWeight.Black,
-                fontSize = 22.sp,
-                letterSpacing = 2.sp,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Game path
-            Text("RUTA DEL JUEGO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = gamePath,
-                onValueChange = {},
-                modifier = Modifier.fillMaxWidth(),
-                readOnly = true,
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Dev mode
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("MODO DESARROLLADOR", fontWeight = FontWeight.SemiBold)
-                        Text("Logs detallados", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Switch(
-                        checked = isDevMode,
-                        onCheckedChange = { viewModel.toggleDevMode() }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // RAM
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("RAM JVM (-Xmx)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${ram.toInt()} MB",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Slider(
-                        value = ram,
-                        onValueChange = viewModel::setRamAllocation,
-                        valueRange = 1024f..8192f,
-                        steps = 7
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("1 GB", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("8 GB", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+            Text("GUARDAR", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }

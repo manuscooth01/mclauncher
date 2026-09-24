@@ -3,13 +3,32 @@ package com.miempresa.mclauncher
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.spacedBy
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filed.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,18 +37,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.miempresa.mclauncher.ui.screens.*
-import com.miempresa.mclauncher.ui.theme.*
-
-sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Versions : Screen("versions", "VERSIONES", Icons.Filled.List)
-    object Modpacks : Screen("modpacks", "MODPACKS", Icons.Filled.FolderOpen)
-    object Mods : Screen("mods", "MODS", Icons.Filled.Widgets)
-    object Account : Screen("account", "CUENTA", Icons.Filled.Person)
-    object Settings : Screen("settings", "AJUSTES", Icons.Filled.Settings)
-}
-
-private val screens = listOf(Screen.Versions, Screen.Modpacks, Screen.Mods, Screen.Account, Screen.Settings)
+import com.miempresa.mclauncher.ui.screens.AccountScreen
+import com.miempresa.mclauncher.ui.screens.ModpacksScreen
+import com.miempresa.mclauncher.ui.screens.ModsScreen
+import com.miempresa.mclauncher.ui.screens.SettingsScreen
+import com.miempresa.mclauncher.ui.screens.VersionsScreen
+import com.miempresa.mclauncher.ui.theme.LucyMcTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,90 +53,48 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                val settingsManager = remember { SettingsManager(applicationContext) }
-                val versionManager = remember { VersionManager(filesDir, applicationContext) }
+                val versionsVm: VersionsViewModel = viewModel()
+                val settingsVm: SettingsViewModel = viewModel()
 
-                val versionsViewModel: VersionsViewModel = viewModel(
-                    factory = VersionsViewModelFactory(versionManager, applicationContext)
-                )
-                val settingsViewModel: SettingsViewModel = viewModel(
-                    factory = SettingsViewModelFactory(settingsManager)
-                )
+                var selectedTab by remember { mutableStateOf(0) }
+                val tabs = listOf("VERSIONES", "MODPACKS", "MODS", "CUENTA", "AJUSTES")
+                val routes = listOf("versions", "modpacks", "mods", "account", "settings")
+                val icons = listOf(Icons.Filled.Home, Icons.Filled.FolderOpen, Icons.Filled.Widgets, Icons.Filled.Person, Icons.Filled.Settings)
 
                 Scaffold(
-                    containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
                         NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 0.dp
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = Color(0xFF1E1E1E)
                         ) {
-                            screens.forEach { screen ->
-                                val isSelected = currentRoute == screen.route
+                            tabs.forEachIndexed { index, label ->
+                                val selected = selectedTab == index
                                 NavigationBarItem(
-                                    selected = isSelected,
+                                    selected = selected,
                                     onClick = {
-                                        if (currentRoute != screen.route) {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
+                                        selectedTab = index
+                                        navController.navigate(routes[index]) {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
                                         }
                                     },
-                                    icon = {
-                                        Icon(screen.icon, null, modifier = Modifier.size(22.dp))
-                                    },
-                                    label = {
-                                        Text(
-                                            screen.label,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.5.sp
-                                        )
-                                    }
+                                    icon = { Icon(icons[index], null, modifier = Modifier.size(24.dp), tint = if (selected) Color(0xFF00FF00) else Color(0xFF888888)) },
+                                    label = { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (selected) Color(0xFF00FF00) else Color(0xFF888888)) }
                                 )
                             }
                         }
                     }
-                ) { innerPadding ->
-                    Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                        NavHost(navController, startDestination = Screen.Versions.route) {
-                            composable(Screen.Versions.route) { VersionsScreen(versionsViewModel) }
-                            composable(Screen.Modpacks.route) { ModpacksScreen() }
-                            composable(Screen.Mods.route) { ModsScreen() }
-                            composable(Screen.Account.route) { AccountScreen(settingsManager) }
-                            composable(Screen.Settings.route) { SettingsScreen(settingsViewModel) }
-                        }
+                ) { padding ->
+                    NavHost(navController, startDestination = "versions") {
+                        composable("versions") { VersionsScreen(versionsVm) }
+                        composable("modpacks") { ModpacksScreen() }
+                        composable("mods") { ModsScreen() }
+                        composable("account") { AccountScreen(settingsVm) }
+                        composable("settings") { SettingsScreen(settingsVm) }
                     }
                 }
             }
         }
-    }
-}
-
-class VersionsViewModelFactory(
-    private val versionManager: VersionManager,
-    private val context: android.content.Context
-) : androidx.lifecycle.ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(VersionsViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return VersionsViewModel(versionManager, context) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
-
-class SettingsViewModelFactory(
-    private val settingsManager: SettingsManager
-) : androidx.lifecycle.ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return SettingsViewModel(settingsManager) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

@@ -6,30 +6,28 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
+import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.coroutines.coroutineContext
 
 class VersionManager(private val filesDir: File, appContext: Context) {
-
     private val context: Context = appContext.applicationContext
 
     companion object {
         private const val MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
         private const val ASSETS_URL = "https://resources.download.minecraft.net"
-        private const val CONNECT_TIMEOUT = 15000
-        private const val READ_TIMEOUT = 15000
+        private const val CONNECT_TIMEOUT = 10000
+        private const val READ_TIMEOUT = 20000
         private const val PREFS_NAME = "mclauncher_cache"
         private const val KEY_VERSIONS_LIST = "versions_list"
-        private const val MAX_VERSIONS_DISPLAY = 15
+        private const val MAX_VERSIONS = 15
         private val VALID_TYPES = setOf("release", "snapshot", "old_beta", "old_alpha")
     }
 
@@ -46,7 +44,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
             val network = cm.activeNetwork
             val cap = cm.getNetworkCapabilities(network)
             cap?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
-                    cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
         } else {
             @Suppress("DEPRECATION")
             cm.activeNetworkInfo?.isConnected == true
@@ -55,10 +53,10 @@ class VersionManager(private val filesDir: File, appContext: Context) {
 
     suspend fun fetchVersions(): Result<List<Pair<String, String>>> = withContext(Dispatchers.IO) {
         try {
-            val url = URL(MANIFEST_URL)
-            val conn = url.openConnection() as HttpURLConnection
+            val conn = URL(MANIFEST_URL).openConnection() as HttpURLConnection
             conn.connectTimeout = CONNECT_TIMEOUT
             conn.readTimeout = READ_TIMEOUT
+            conn.useCaches = false
 
             val reader = BufferedReader(InputStreamReader(conn.inputStream))
             val sb = StringBuilder()
@@ -70,8 +68,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
             val versionsArray = manifest.getJSONArray("versions")
             val list = mutableListOf<Pair<String, String>>()
 
-            val max = minOf(versionsArray.length(), MAX_VERSIONS_DISPLAY)
-            for (i in 0 until max) {
+            for (i in 0 until versionsArray.length().coerceAtMost(MAX_VERSIONS)) {
                 val v = versionsArray.getJSONObject(i)
                 val type = v.getString("type")
                 if (type in VALID_TYPES) {
@@ -79,10 +76,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
                 }
             }
 
-            saveToCache(JSONArray().apply {
-                for (i in 0 until max) put(versionsArray.getJSONObject(i))
-            })
-
+            saveToCache(versionsArray, list.size)
             Result.success(list)
         } catch (e: Exception) {
             Result.failure(e)
@@ -91,54 +85,57 @@ class VersionManager(private val filesDir: File, appContext: Context) {
 
     fun loadFromCache(): List<Pair<String, String>>? {
         return try {
-            val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val cachedData = sharedPrefs.getString(KEY_VERSIONS_LIST, null) ?: return null
-
-            val jsonArray = JSONObject(cachedData).getJSONArray("versions")
-            val cachedVersions = mutableListOf<Pair<String, String>>()
-            for (i in 0 until jsonArray.length()) {
-                val v = jsonArray.getJSONObject(i)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cached = prefs.getString(KEY_VERSIONS_LIST, null) ?: return null
+            val json = JSONObject(cached)
+            val arr = json.getJSONArray("versions")
+            val list = mutableListOf<Pair<String, String>>()
+            for (i in 0 until arr.length()) {
+                val v = arr.getJSONObject(i)
                 val type = v.getString("type")
-                if (type in VALID_TYPES) {
-                    cachedVersions.add(v.getString("id") to type)
-                }
+                if (type in VALID_TYPES) list.add(v.getString("id") to type)
             }
-            cachedVersions
-        } catch (_: Exception) {
-            null
-        }
+            list
+        } catch (_: Exception) { null }
     }
 
-    private fun saveToCache(versionsArray: JSONArray) {
+    private fun saveToCache(versionsArray: JSONArray, count: Int) {
         try {
-            val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val cacheObject = JSONObject()
-            cacheObject.put("versions", versionsArray)
-            sharedPrefs.edit().putString(KEY_VERSIONS_LIST, cacheObject.toString()).apply()
-        } catch (_: Exception) {
-        }
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cache = JSONObject().put("versions", JSONArray().apply {
+                for (i in 0 until count) put(versionsArray.getJSONObject(i))
+            })
+            prefs.edit().putString(KEY_VERSIONS_LIST, cache.toString()).apply()
+        } catch (_: Exception) {}
     }
 
-    private fun downloadFile(url: String, dest: File) {
-        if (dest.exists() && dest.length() > 0) return
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = CONNECT_TIMEOUT
-        conn.readTimeout = READ_TIMEOUT
-        conn.inputStream.use { input ->
-            dest.outputStream().use { output ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
+    private fun downloadFile(url: String, dest: File): Boolean {
+        if (dest.exists() && dest.length() > 0) return true
+        try {
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.connectTimeout = CONNECT_TIMEOUT
+            conn.readTimeout = READ_TIMEOUT
+            conn.useCaches = false
+
+            dest.parentFile?.mkdirs()
+            conn.inputStream.use { input ->
+                FileOutputStream(dest).use { output ->
+                    val buffer = ByteArray(8192)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        output.write(buffer, 0, read)
+                    }
                 }
             }
-        }
+            true
+        } catch (_: Exception) { false }
     }
 
     private fun fetchJson(url: String): JSONObject {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = CONNECT_TIMEOUT
         conn.readTimeout = READ_TIMEOUT
+        conn.useCaches = false
         val reader = BufferedReader(InputStreamReader(conn.inputStream))
         val sb = StringBuilder()
         var line: String?
@@ -147,30 +144,25 @@ class VersionManager(private val filesDir: File, appContext: Context) {
         return JSONObject(sb.toString())
     }
 
-    private suspend fun emitProgress(
-        onProgress: suspend (DownloadProgress) -> Unit,
-        progress: DownloadProgress,
-        lastEmitTime: MutableLong
-    ) {
-        val now = System.currentTimeMillis()
-        if (now - lastEmitTime.value >= 100 || progress.current == progress.total) {
-            onProgress(progress)
-            lastEmitTime.value = now
-        }
-    }
-
     suspend fun downloadVersion(
         versionId: String,
         onProgress: suspend (DownloadProgress) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val lastEmitTime = MutableLong(0)
+        var lastEmit = 0L
+        fun emit(p: DownloadProgress) {
+            val now = System.currentTimeMillis()
+            if (now - lastEmit >= 100 || p.current == p.total) {
+                onProgress(p)
+                lastEmit = now
+            }
+        }
+
         try {
-            emitProgress(onProgress, DownloadProgress("MANIFEST", 0, 1, "Obteniendo manifiesto..."), lastEmitTime)
+            emit(DownloadProgress("MANIFEST", 0, 1, "Obteniendo manifiesto..."))
 
             val manifest = fetchJson(MANIFEST_URL)
-            val versions = manifest.getJSONArray("versions")
             var versionUrl = ""
-
+            val versions = manifest.getJSONArray("versions")
             for (i in 0 until versions.length()) {
                 val v = versions.getJSONObject(i)
                 if (v.getString("id") == versionId) {
@@ -178,250 +170,179 @@ class VersionManager(private val filesDir: File, appContext: Context) {
                     break
                 }
             }
-
-            if (versionUrl.isEmpty()) {
-                emitProgress(onProgress, DownloadProgress("ERROR", 0, 1, "URL no encontrada"), lastEmitTime)
-                return@withContext
-            }
+            if (versionUrl.isEmpty()) { emit(DownloadProgress("ERROR", 0, 1, "URL no encontrada")); return@withContext }
 
             val versionJson = fetchJson(versionUrl)
             val dir = File(filesDir, "versions/$versionId")
-            if (!dir.exists()) dir.mkdirs()
-
+            dir.mkdirs()
             FileWriter(File(dir, "$versionId.json")).use { it.write(versionJson.toString()) }
 
-            coroutineContext.ensureActive()
-            emitProgress(onProgress, DownloadProgress("CLIENT_JAR", 0, 1, "Descargando cliente..."), lastEmitTime)
-
+            emit(DownloadProgress("CLIENT_JAR", 0, 1, "Descargando cliente..."))
             val jarFile = File(dir, "$versionId.jar")
             downloadFile(versionJson.getJSONObject("downloads").getJSONObject("client").getString("url"), jarFile)
 
-            coroutineContext.ensureActive()
-
-            val librariesDir = File(dir, "libraries")
-            if (!librariesDir.exists()) librariesDir.mkdirs()
-
+            val libsDir = File(dir, "libraries").apply { mkdirs() }
             val libraries = versionJson.getJSONArray("libraries")
-            var libCount = 0
             val totalLibs = libraries.length()
-
             for (i in 0 until totalLibs) {
-                coroutineContext.ensureActive()
                 val lib = libraries.getJSONObject(i)
-                val downloadsLib = lib.optJSONObject("downloads") ?: continue
-                val artifact = downloadsLib.optJSONObject("artifact") ?: continue
-                val libPath = artifact.getString("path")
-                val libSize = artifact.optLong("size", 0)
-
-                val destFile = File(librariesDir, libPath)
-                if (!destFile.exists() || destFile.length() != libSize) {
-                    destFile.parentFile?.mkdirs()
-                    try {
-                        downloadFile(artifact.getString("url"), destFile)
-                    } catch (_: Exception) {
-                    }
+                val dl = lib.optJSONObject("downloads") ?: continue
+                val art = dl.optJSONObject("artifact") ?: continue
+                val path = art.getString("path")
+                val size = art.optLong("size", 0)
+                val dest = File(libsDir, path)
+                if (!dest.exists() || dest.length() != size) {
+                    dest.parentFile?.mkdirs()
+                    downloadFile(art.getString("url"), dest)
                 }
-                libCount++
-                emitProgress(onProgress, DownloadProgress("LIBRARIES", libCount, totalLibs, "Librería $libCount/$totalLibs"), lastEmitTime)
+                emit(DownloadProgress("LIBRARIES", i + 1, totalLibs, "Lib ${i + 1}/$totalLibs"))
             }
-
-            coroutineContext.ensureActive()
 
             val assetIndex = versionJson.optJSONObject("assetIndex")
             if (assetIndex != null) {
-                val assetIndexId = assetIndex.getString("id")
+                val assetId = assetIndex.getString("id")
                 val assetsDir = File(filesDir, "assets")
-                val indexesDir = File(assetsDir, "indexes").also { it.mkdirs() }
-                val indexFile = File(indexesDir, "$assetIndexId.json")
+                val indexesDir = File(assetsDir, "indexes").apply { mkdirs() }
+                val indexFile = File(indexesDir, "$assetId.json")
                 downloadFile(assetIndex.getString("url"), indexFile)
 
-                val indexJson = JSONObject(indexFile.readText())
-                val objects = indexJson.getJSONObject("objects")
-                val assetKeys = objects.keys()
-                val assetList = mutableListOf<Pair<String, JSONObject>>()
-                while (assetKeys.hasNext()) {
-                    val key = assetKeys.next()
-                    assetList.add(key to objects.getJSONObject(key))
-                }
+                val idxJson = JSONObject(indexFile.readText())
+                val objects = idxJson.getJSONObject("objects")
+                val keys = mutableListOf<String>()
+                val iter = objects.keys()
+                while (iter.hasNext()) keys.add(iter.next())
+                val totalAssets = keys.size
 
-                val objectsDir = File(assetsDir, "objects").also { it.mkdirs() }
-                var assetCount = 0
-                val totalAssets = assetList.size
-
-                for ((_, assetInfo) in assetList) {
-                    coroutineContext.ensureActive()
-                    val hash = assetInfo.getString("hash")
+                val objectsDir = File(assetsDir, "objects").apply { mkdirs() }
+                for (i in keys.indices) {
+                    val info = objects.getJSONObject(keys[i])
+                    val hash = info.getString("hash")
                     val prefix = hash.substring(0, 2)
                     val assetFile = File(objectsDir, "$prefix/$hash")
-                    if (!assetFile.exists() || assetFile.length() != assetInfo.getLong("size")) {
+                    if (!assetFile.exists() || assetFile.length() != info.getLong("size")) {
                         assetFile.parentFile?.mkdirs()
-                        try {
-                            downloadFile("$ASSETS_URL/$prefix/$hash", assetFile)
-                        } catch (_: Exception) {
-                        }
+                        downloadFile("$ASSETS_URL/$prefix/$hash", assetFile)
                     }
-                    assetCount++
-                    if (assetCount % 50 == 0 || assetCount == totalAssets) {
-                        emitProgress(onProgress, DownloadProgress("ASSETS", assetCount, totalAssets, "Asset $assetCount/$totalAssets"), lastEmitTime)
+                    if (i % 50 == 0 || i == totalAssets - 1) {
+                        emit(DownloadProgress("ASSETS", i + 1, totalAssets, "Asset ${i + 1}/$totalAssets"))
                     }
                 }
             }
 
             generateLaunchProfile(versionId, versionJson)
-            emitProgress(onProgress, DownloadProgress("COMPLETE", 1, 1, "✅ $versionId instalado"), lastEmitTime)
+            emit(DownloadProgress("COMPLETE", 1, 1, "✅ $versionId lista"))
         } catch (e: Exception) {
-            emitProgress(onProgress, DownloadProgress("ERROR", 0, 1, "❌ ${e.message ?: "Error desconocido"}"), lastEmitTime)
+            emit(DownloadProgress("ERROR", 0, 1, "❌ ${e.message ?: "Error"}"))
         }
     }
 
-    private class MutableLong(var value: Long)
-
-    private fun generateLaunchProfile(versionId: String, versionJson: JSONObject) {
+    private fun generateLaunchProfile(versionId: String, vJson: JSONObject) {
         val dir = File(filesDir, "versions/$versionId")
-        val librariesDir = File(dir, "libraries")
+        val libsDir = File(dir, "libraries")
         val profile = JSONObject()
 
         profile.put("id", versionId)
-        profile.put("mainClass", versionJson.optString("mainClass", "net.minecraft.client.main.Main"))
+        profile.put("mainClass", vJson.optString("mainClass", "net.minecraft.client.main.Main"))
 
-        val args = versionJson.optJSONObject("arguments")
+        val args = vJson.optJSONObject("arguments")
         if (args != null) {
             val gameArgs = args.optJSONArray("game") ?: JSONArray()
             val jvmArgs = args.optJSONArray("jvm") ?: JSONArray()
-
-            val argList = mutableListOf<String>()
-            for (i in 0 until gameArgs.length()) {
-                val arg = gameArgs.get(i)
-                if (arg is String) argList.add(arg)
-            }
-            profile.put("gameArgs", JSONArray(argList))
-
-            val jvmArgList = mutableListOf<String>()
+            val gList = mutableListOf<String>()
+            val jList = mutableListOf<String>()
+            for (i in 0 until gameArgs.length()) { val a = gameArgs.get(i); if (a is String) gList.add(a) }
             for (i in 0 until jvmArgs.length()) {
-                val arg = jvmArgs.get(i)
-                if (arg is String) {
-                    val resolved = arg
+                val a = jvmArgs.get(i)
+                if (a is String) {
+                    jList.add(a
                         .replace("\${auth_player_name}", "Player")
                         .replace("\${version_name}", versionId)
                         .replace("\${game_directory}", filesDir.absolutePath)
                         .replace("\${assets_directory}", File(filesDir, "assets").absolutePath)
-                        .replace("\${assets_root}", versionJson.optJSONObject("assetIndex")?.optString("id") ?: "")
+                        .replace("\${assets_root}", vJson.optJSONObject("assetIndex")?.optString("id") ?: "")
                         .replace("\${user_properties}", "{}")
                         .replace("\${auth_uuid}", "0")
-                        .replace("\${auth_access_token}", "0")
-                    jvmArgList.add(resolved)
+                        .replace("\${auth_access_token}", "0"))
                 }
             }
-            profile.put("jvmArgs", JSONArray(jvmArgList))
+            profile.put("gameArgs", JSONArray(gList))
+            profile.put("jvmArgs", JSONArray(jList))
         } else {
-            val argsStr = versionJson.optString("minecraftArguments", "")
-            if (argsStr.isNotEmpty()) {
-                profile.put("gameArgs", JSONArray(argsStr.split(" ")))
-            }
+            val aStr = vJson.optString("minecraftArguments", "")
+            if (aStr.isNotEmpty()) profile.put("gameArgs", JSONArray(aStr.split(" ")))
         }
 
-        val classpath = mutableListOf<String>()
-        classpath.add(File(dir, "$versionId.jar").absolutePath)
-
-        val libraries = versionJson.getJSONArray("libraries")
-        for (i in 0 until libraries.length()) {
-            val lib = libraries.getJSONObject(i)
-            val downloads = lib.optJSONObject("downloads")
-            val artifact = downloads?.optJSONObject("artifact")
-            if (artifact != null) {
-                val libFile = File(librariesDir, artifact.getString("path"))
-                if (libFile.exists()) classpath.add(libFile.absolutePath)
+        val cp = mutableListOf<String>()
+        cp.add(File(dir, "$versionId.jar").absolutePath)
+        val libs = vJson.getJSONArray("libraries")
+        for (i in 0 until libs.length()) {
+            val lib = libs.getJSONObject(i)
+            val dl = lib.optJSONObject("downloads")
+            val art = dl?.optJSONObject("artifact")
+            if (art != null) {
+                val f = File(libsDir, art.getString("path"))
+                if (f.exists()) cp.add(f.absolutePath)
             }
             val natives = lib.optJSONObject("natives")
             if (natives != null) {
-                val nativeClassifier = natives.optString("android", natives.optString("linux", ""))
-                if (nativeClassifier.isNotEmpty() && downloads != null) {
-                    val classifiers = downloads.optJSONObject("classifiers")
-                    val nativeArtifact = classifiers?.optJSONObject(nativeClassifier)
-                    if (nativeArtifact != null) {
-                        val nativeFile = File(librariesDir, nativeArtifact.getString("path"))
-                        if (!nativeFile.exists()) {
-                            nativeFile.parentFile?.mkdirs()
-                            try { downloadFile(nativeArtifact.getString("url"), nativeFile) } catch (_: Exception) {}
-                        }
-                        classpath.add(nativeFile.absolutePath)
+                val cls = natives.optString("android", natives.optString("linux", ""))
+                if (cls.isNotEmpty() && dl != null) {
+                    val classif = dl.optJSONObject("classifiers")
+                    val nat = classif?.optJSONObject(cls)
+                    if (nat != null) {
+                        val nf = File(libsDir, nat.getString("path"))
+                        if (!nf.exists()) { nf.parentFile?.mkdirs(); downloadFile(nat.getString("url"), nf) }
+                        cp.add(nf.absolutePath)
                     }
                 }
             }
         }
-
-        profile.put("classpath", JSONArray(classpath))
-        FileWriter(File(dir, "lucymc_profile.json")).use { it.write(profile.toString(2)) }
+        profile.put("classpath", JSONArray(cp))
+        FileWriter(File(dir, "lucymc_profile.json")).use { it.write(profile.toString()) }
     }
 
     fun isVersionInstalled(versionId: String): Boolean {
-        val jarFile = File(filesDir, "versions/$versionId/$versionId.jar")
-        val profileFile = File(filesDir, "versions/$versionId/lucymc_profile.json")
-        return jarFile.exists() && jarFile.length() > 0 && profileFile.exists()
+        val jar = File(filesDir, "versions/$versionId/$versionId.jar")
+        val prof = File(filesDir, "versions/$versionId/lucymc_profile.json")
+        return jar.exists() && jar.length() > 0 && prof.exists()
     }
 
     suspend fun getInstalledVersionIds(): Set<String> = withContext(Dispatchers.IO) {
-        val versionsDir = File(filesDir, "versions")
-        if (!versionsDir.exists()) return@withContext emptySet()
-        versionsDir.listFiles()
-            ?.filter { it.isDirectory && File(it, "${it.name}.jar").exists() }
-            ?.map { it.name }
-            ?.toSet()
-            ?: emptySet()
+        val dir = File(filesDir, "versions")
+        if (!dir.exists()) return@withContext emptySet()
+        dir.listFiles()?.filter { it.isDirectory && File(it, "${it.name}.jar").exists() }?.map { it.name }?.toSet() ?: emptySet()
     }
 
-    fun deleteVersion(versionId: String): Boolean {
-        return File(filesDir, "versions/$versionId").deleteRecursively()
-    }
+    fun deleteVersion(versionId: String): Boolean = File(filesDir, "versions/$versionId").deleteRecursively()
 
     fun launchGame(versionId: String, username: String, ramMb: Int): Intent? {
-        val profileFile = File(filesDir, "versions/$versionId/lucymc_profile.json")
-        if (!profileFile.exists()) return null
-
-        val profile = JSONObject(profileFile.readText())
-        val mainClass = profile.getString("mainClass")
-        val classpathList = mutableListOf<String>()
-        val cpArray = profile.optJSONArray("classpath")
-        if (cpArray != null) {
-            for (i in 0 until cpArray.length()) classpathList.add(cpArray.getString(i))
-        }
-
-        val gameArgsList = mutableListOf<String>()
-        val gameArgs = profile.optJSONArray("gameArgs")
-        if (gameArgs != null) {
-            for (i in 0 until gameArgs.length()) {
-                var arg = gameArgs.getString(i)
-                arg = arg.replace("\${auth_player_name}", username)
-                    .replace("\${version_name}", versionId)
-                    .replace("\${game_directory}", filesDir.absolutePath)
-                    .replace("\${assets_directory}", File(filesDir, "assets").absolutePath)
-                    .replace("\${user_properties}", "{}")
-                    .replace("\${auth_uuid}", "0")
-                    .replace("\${auth_access_token}", "0")
-                gameArgsList.add(arg)
-            }
-        }
-
-        val jvmArgs = mutableListOf(
-            "-Xmx${ramMb}m",
-            "-Xms512m",
-            "-Djava.library.path=${File(filesDir, "versions/$versionId/natives").absolutePath}",
-            "-cp", classpathList.joinToString(":")
-        )
-
+        val prof = File(filesDir, "versions/$versionId/lucymc_profile.json")
+        if (!prof.exists()) return null
+        val p = JSONObject(prof.readText())
+        val main = p.getString("mainClass")
+        val cp = mutableListOf<String>()
+        p.optJSONArray("classpath")?.let { for (i in 0 until it.length()) cp.add(it.getString(i)) }
+        val gArgs = mutableListOf<String>()
+        p.optJSONArray("gameArgs")?.let { for (i in 0 until it.length()) gArgs.add(it.getString(i)
+            .replace("\${auth_player_name}", username)
+            .replace("\${version_name}", versionId)
+            .replace("\${game_directory}", filesDir.absolutePath)
+            .replace("\${assets_directory}", File(filesDir, "assets").absolutePath)
+            .replace("\${user_properties}", "{}")
+            .replace("\${auth_uuid}", "0")
+            .replace("\${auth_access_token}", "0")) }
+        val jArgs = listOf("-Xmx${ramMb}m", "-Xms256m", "-Djava.library.path=${File(filesDir, "versions/$versionId/natives").absolutePath}", "-cp", cp.joinToString(":"))
         return try {
             Intent(Intent.ACTION_VIEW).apply {
                 setClassName("net.kdt.pojavlaunch", "net.kdt.pojavlaunch.PojavLauncherActivity")
                 putExtra("launch_version", versionId)
                 putExtra("username", username)
-                putExtra("java_args", jvmArgs.joinToString(" "))
-                putExtra("classpath", classpathList.joinToString(":"))
-                putExtra("main_class", mainClass)
-                putExtra("game_args", gameArgsList.joinToString(" "))
+                putExtra("java_args", jArgs.joinToString(" "))
+                putExtra("classpath", cp.joinToString(":"))
+                putExtra("main_class", main)
+                putExtra("game_args", gArgs.joinToString(" "))
                 putExtra("game_dir", filesDir.absolutePath)
             }
-        } catch (_: Exception) {
-            null
-        }
+        } catch (_: Exception) { null }
     }
 }
