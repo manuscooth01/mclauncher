@@ -256,7 +256,6 @@ fun LoaderSelectionSheet(
             availableLoaders.forEach { loader ->
                 val isSelected = selectedLoader == loader
                 FilterChip(
-                    key = loader,
                     selected = isSelected,
                     onClick = { onLoaderSelected(if (isSelected) null else loader) },
                     label = { Text(loader, fontSize = 12.sp) },
@@ -281,7 +280,6 @@ fun LoaderSelectionSheet(
                 loaderVersions.forEach { version ->
                     val isSelected = selectedLoaderVersion == version
                     FilterChip(
-                        key = version,
                         selected = isSelected,
                         onClick = { onLoaderVersionSelected(version) },
                         label = { Text(version, fontSize = 12.sp) },
