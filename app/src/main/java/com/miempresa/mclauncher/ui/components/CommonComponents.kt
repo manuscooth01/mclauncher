@@ -67,7 +67,6 @@ fun VersionGridCard(
                 modifier = Modifier
                     .padding(horizontal = 4.dp, vertical = 1.dp)
                     .background(accent.copy(alpha = 0.1f), shape = RoundedCornerShape(2.dp))
-                    .shape(RoundedCornerShape(2.dp))
             ) {
                 Text(
                     text = versionType.uppercase(),
