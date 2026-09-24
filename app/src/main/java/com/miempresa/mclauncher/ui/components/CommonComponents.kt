@@ -37,57 +37,58 @@ fun VersionGridCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
+            .shadow(elevation = 1.dp, shape = RoundedCornerShape(4.dp)) // Reduced elevation
             .clickable { onCardClick() },
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f) // Slightly transparent
         ),
         border = BorderStroke(
-            1.dp,
-            if (isInstalled) NeonGreen.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            0.5.dp, // Thinner border
+            if (isInstalled) NeonGreen.copy(alpha = 0.3f)
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
         )
     ) {
         Column(
             modifier = Modifier
-                .padding(14.dp)
+                .padding(8.dp) // Reduced padding
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = versionId,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp, // Reduced font size
+                fontWeight = FontWeight.Medium, // Reduced weight
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Surface(
-                color = accent.copy(alpha = 0.15f),
-                shape = RoundedCornerShape(4.dp)
+            Spacer(modifier = Modifier.height(2.dp)) // Reduced spacing
+            // Simplified version type badge - just text with background
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                    .background(accent.copy(alpha = 0.1f))
+                    .shape(RoundedCornerShape(2.dp))
             ) {
                 Text(
                     text = versionType.uppercase(),
-                    fontSize = 9.sp,
+                    fontSize = 8.sp, // Reduced font size
                     fontWeight = FontWeight.Bold,
                     color = accent,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    letterSpacing = 0.5.sp
                 )
             }
             if (isInstalled) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp)) // Reduced spacing
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = null,
                         tint = NeonGreen,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(12.dp) // Slightly smaller icon
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(2.dp)) // Reduced spacing
                     Text(
                         text = "INSTALADO",
-                        fontSize = 9.sp,
+                        fontSize = 8.sp, // Reduced font size
                         fontWeight = FontWeight.Bold,
                         color = NeonGreen
                     )
@@ -100,22 +101,22 @@ fun VersionGridCard(
 @Composable
 fun DownloadProgressIndicator(progress: com.miempresa.mclauncher.VersionManager.DownloadProgress?) {
     if (progress == null) return
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+    Column(modifier = Modifier.padding(vertical = 2.dp)) { // Reduced padding
         LinearProgressIndicator(
             progress = if (progress.total > 0)
                 progress.current.toFloat() / progress.total else 0f,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp)),
+                .height(2.dp) // Thinner progress bar
+                .clip(RoundedCornerShape(1.dp)),
             color = NeonGreen,
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp)) // Reduced spacing
         Text(
             text = "[${progress.phase}] ${progress.detail}",
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 9.sp, // Reduced font size
+            color = MaterialTheme.colorScheme.outline
         )
     }
 }

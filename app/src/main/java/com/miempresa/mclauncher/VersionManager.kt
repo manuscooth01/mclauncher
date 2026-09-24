@@ -29,7 +29,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
         private const val READ_TIMEOUT = 15000
         private const val PREFS_NAME = "mclauncher_cache"
         private const val KEY_VERSIONS_LIST = "versions_list"
-        private const val MAX_VERSIONS_DISPLAY = 100
+        private const val MAX_VERSIONS_DISPLAY = 15
         private val VALID_TYPES = setOf("release", "snapshot", "old_beta", "old_alpha")
     }
 

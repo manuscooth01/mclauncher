@@ -64,19 +64,19 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 12.dp) // Reduced from 16.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp),
+                    .padding(vertical = 12.dp), // Reduced from 16.dp
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "LUCYMC",
                     fontWeight = FontWeight.Black,
-                    fontSize = 22.sp,
+                    fontSize = 20.sp, // Reduced from 22.sp
                     letterSpacing = 4.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -97,7 +97,7 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                             uiState.isLoading -> "CARGANDO"
                             else -> "EN LINEA"
                         },
-                        fontSize = 10.sp,
+                        fontSize = 9.sp, // Reduced from 10.sp
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -129,15 +129,15 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(8.dp), // Reduced from 12.dp
                 singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // Reduced from 12.dp
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp) // Reduced from 8.dp
             ) {
                 FILTERS.forEach { option ->
                     val isSelected = uiState.selectedFilter == option
@@ -154,7 +154,7 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                         label = {
                             Text(
                                 text = option,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp, // Reduced from 10.sp
                                 fontWeight = FontWeight.Bold
                             )
                         },
@@ -162,14 +162,16 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                             selectedContainerColor = accent,
                             selectedLabelColor = MaterialTheme.colorScheme.surface
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(6.dp) // Reduced from 8.dp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp)) // Reduced from 12.dp
 
             DownloadProgressIndicator(uiState.downloadProgress)
+
+            Spacer(modifier = Modifier.height(8.dp)) // Reduced from 12.dp
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -179,8 +181,8 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp), // Reduced from 10.dp
+                    horizontalArrangement = Arrangement.spacedBy(6.dp) // Reduced from 10.dp
                 ) {
                     items(filteredVersions, key = { it.first }) { (id, type) ->
                         VersionGridCard(
