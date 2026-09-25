@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -53,8 +55,15 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                val versionsVm: VersionsViewModel = viewModel()
-                val settingsVm: SettingsViewModel = viewModel()
+                val settingsManager = remember { SettingsManager(applicationContext) }
+                val versionManager = remember { VersionManager(filesDir, applicationContext) }
+
+                val versionsVm: VersionsViewModel = viewModel(factory = viewModelFactory {
+                    initializer { VersionsViewModel(versionManager, applicationContext) }
+                })
+                val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory {
+                    initializer { SettingsViewModel(settingsManager) }
+                })
 
                 var selectedTab by remember { mutableStateOf(0) }
                 val tabs = listOf("VERSIONES", "MODPACKS", "MODS", "CUENTA", "AJUSTES")
