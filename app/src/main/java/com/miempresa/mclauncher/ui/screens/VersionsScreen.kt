@@ -2,6 +2,7 @@ package com.miempresa.mclauncher.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -34,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,7 +83,7 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("LUCYMC", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF00FF00), letterSpacing = 2.sp)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                androidx.compose.foundation.Box(
+                Box(
                     modifier = Modifier.size(8.dp),
                     contentAlignment = Alignment.Center,
                     shape = RoundedCornerShape(4.dp)
@@ -125,9 +128,10 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         }
 
         if (downloading) {
+            val progress = if (downloadProgress?.total != null && downloadProgress!.total > 0) downloadProgress!.current.toFloat() / downloadProgress!.total else 0f
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 LinearProgressIndicator(
-                    progress = if (downloadProgress?.total != null && downloadProgress!.total > 0) downloadProgress!.current.toFloat() / downloadProgress!.total else 0f,
+                    progress = progress,
                     modifier = Modifier.fillMaxWidth().height(3.dp),
                     color = Color(0xFF00FF00),
                     trackColor = Color(0xFF222222)
@@ -137,7 +141,7 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         }
 
         if (isLoading) {
-            androidx.compose.foundation.Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Color(0xFF00FF00), strokeWidth = 3.dp)
             }
         } else {
@@ -254,9 +258,9 @@ private fun VersionCard(
         border = androidx.compose.foundation.BorderStroke(1.dp, if (installed) accent.copy(alpha = 0.3f) else Color(0xFF333333))
     ) {
         Column(modifier = Modifier.padding(10.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(id, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = androidx.compose.ui.text.TextOverflow.Ellipsis)
+            Text(id, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(2.dp))
-            androidx.compose.foundation.Box(
+            Box(
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp).background(accent.copy(alpha = 0.15f), shape = RoundedCornerShape(2.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -265,9 +269,7 @@ private fun VersionCard(
             if (installed) {
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    androidx.compose.material.icons.Icons.Filled.CheckCircle.let { icon ->
-                        androidx.compose.material3.Icon(icon, null, tint = Color(0xFF00FF00), modifier = Modifier.size(12.dp))
-                    }
+                    Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF00FF00), modifier = Modifier.size(12.dp))
                     Text("INSTALADA", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00FF00))
                 }
             }

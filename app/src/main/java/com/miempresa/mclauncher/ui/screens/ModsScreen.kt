@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.spacedBy
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,7 +16,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun ModsScreen() {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("MODS", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF00FFFF))
         Text("Próximamente", fontSize = 16.sp, color = Color(0xFF888888))
     }

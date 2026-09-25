@@ -5,8 +5,10 @@ import android.content.SharedPreferences
 
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("lucymc_settings", Context.MODE_PRIVATE)
-    private const val DEFAULT_RAM = 2048
-    private const val DEFAULT_USER = "Player"
+    companion object {
+        private const val DEFAULT_RAM = 2048
+        private const val DEFAULT_USER = "Player"
+    }
 
     var ramMb: Int
         get() = prefs.getInt("ram", DEFAULT_RAM)

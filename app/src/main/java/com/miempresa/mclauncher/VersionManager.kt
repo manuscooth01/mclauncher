@@ -127,8 +127,10 @@ class VersionManager(private val filesDir: File, appContext: Context) {
                     }
                 }
             }
-            true
-        } catch (_: Exception) { false }
+            return true
+        } catch (_: Exception) {
+            return false
+        }
     }
 
     private fun fetchJson(url: String): JSONObject {
@@ -149,7 +151,7 @@ class VersionManager(private val filesDir: File, appContext: Context) {
         onProgress: suspend (DownloadProgress) -> Unit
     ) = withContext(Dispatchers.IO) {
         var lastEmit = 0L
-        fun emit(p: DownloadProgress) {
+        suspend fun emit(p: DownloadProgress) {
             val now = System.currentTimeMillis()
             if (now - lastEmit >= 100 || p.current == p.total) {
                 onProgress(p)
