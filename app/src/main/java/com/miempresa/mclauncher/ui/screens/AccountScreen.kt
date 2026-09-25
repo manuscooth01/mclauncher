@@ -17,7 +17,7 @@ import com.miempresa.mclauncher.SettingsManager
 
 @Composable
 fun AccountScreen(settingsManager: SettingsManager) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("CUENTA", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFCC00))
         Text("Usuario: ${settingsManager.username}", fontSize = 16.sp, color = Color.White)
         Text("RAM: ${settingsManager.ramMb} MB", fontSize = 16.sp, color = Color.White)

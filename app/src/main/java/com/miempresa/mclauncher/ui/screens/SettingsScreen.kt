@@ -31,10 +31,10 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     var ram by remember { mutableStateOf(viewModel.settingsManager.ramMb) }
     var username by remember { mutableStateOf(viewModel.settingsManager.username) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = spacedBy(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("AJUSTES", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFFFF4444))
 
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = spacedBy(8.dp)) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("RAM (MB): $ram", fontSize = 16.sp, color = Color.White)
             Slider(
                 value = ram.toFloat(),
@@ -46,7 +46,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             )
         }
 
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = spacedBy(8.dp)) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Usuario", fontSize = 16.sp, color = Color.White)
             androidx.compose.material3.OutlinedTextField(
                 value = username,

@@ -84,10 +84,11 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
             Text("LUCYMC", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF00FF00), letterSpacing = 2.sp)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(
-                    modifier = Modifier.size(8.dp),
-                    contentAlignment = Alignment.Center,
-                    shape = RoundedCornerShape(4.dp)
-                ).background(if (isLoading || downloading) Color(0xFFFFCC00) else Color(0xFF00FF00))
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(if (isLoading || downloading) Color(0xFFFFCC00) else Color(0xFF00FF00), shape = RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center
+                )
                 Text(if (downloading) "DESCARGANDO" else if (isLoading) "CARGANDO" else "ONLINE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF888888))
             }
         }
@@ -183,7 +184,7 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         androidx.compose.material3.ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
             containerColor = Color(0xFF1E1E1E),
-            sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Versión $selectedVersion", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -261,8 +262,11 @@ private fun VersionCard(
             Text(id, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(2.dp))
             Box(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp).background(accent.copy(alpha = 0.15f), shape = RoundedCornerShape(2.dp)),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                    .background(accent.copy(alpha = 0.15f), shape = RoundedCornerShape(2.dp))
+                    .align(Alignment.CenterHorizontally)
+                    .fillMaxWidth()
             ) {
                 Text(type, fontSize = 8.sp, fontWeight = FontWeight.Bold, color = accent, letterSpacing = 0.5.sp)
             }

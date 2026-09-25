@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
                         composable("versions") { VersionsScreen(versionsVm) }
                         composable("modpacks") { ModpacksScreen() }
                         composable("mods") { ModsScreen() }
-                        composable("account") { AccountScreen(settingsVm) }
+                        composable("account") { AccountScreen(settingsVm.settingsManager) }
                         composable("settings") { SettingsScreen(settingsVm) }
                     }
                 }
