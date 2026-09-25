@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miempresa.mclauncher.SettingsManager
 import com.miempresa.mclauncher.SettingsViewModel
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
@@ -37,7 +36,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             Text("RAM (MB): $ram", fontSize = 16.sp, color = Color.White)
             Slider(
                 value = ram.toFloat(),
-                onValueChange = { ram = roundToInt(it) },
+                onValueChange = { ram = it.roundToInt() },
                 valueRange = 512f..4096f,
                 steps = 12,
                 modifier = Modifier.fillMaxWidth(),

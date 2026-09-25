@@ -128,7 +128,8 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
         }
 
         if (downloading) {
-            val progress = if (downloadProgress?.total != null && downloadProgress!.total > 0) downloadProgress!.current.toFloat() / downloadProgress!.total else 0f
+            val prog = downloadProgress
+            val progress = if (prog != null && prog.total > 0) prog.current.toFloat() / prog.total else 0f
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 LinearProgressIndicator(
                     progress = progress,
@@ -136,7 +137,7 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                     color = Color(0xFF00FF00),
                     trackColor = Color(0xFF222222)
                 )
-                Text("[${downloadProgress?.phase}] ${downloadProgress?.detail ?: ""}", fontSize = 10.sp, color = Color(0xFF888888))
+                Text("[${prog?.phase}] ${prog?.detail ?: ""}", fontSize = 10.sp, color = Color(0xFF888888))
             }
         }
 
