@@ -39,4 +39,3 @@
 -keepattributes !SourceFile,!LineNumberTable,!LocalVariableTable,!LocalVariableTypeTable,!AnnotationDefault,!RuntimeVisibleAnnotations,!RuntimeInvisibleAnnotations,!RuntimeVisibleParameterAnnotations,!RuntimeInvisibleParameterAnnotations,!EnclosingMethod
 
 # Remove unused resources
--resource.keepmode.keeponly *
