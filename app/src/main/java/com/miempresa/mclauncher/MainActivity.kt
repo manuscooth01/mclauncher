@@ -46,6 +46,7 @@ import com.miempresa.mclauncher.ui.theme.LucyMcTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLogger.install(this)
         setContent {
             LucyMcTheme {
                 val navController = rememberNavController()
