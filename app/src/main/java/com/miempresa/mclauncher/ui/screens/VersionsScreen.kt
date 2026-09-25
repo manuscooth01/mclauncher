@@ -35,7 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextOverflow
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +87,8 @@ fun VersionsScreen(viewModel: VersionsViewModel) {
                         .size(8.dp)
                         .background(if (isLoading || downloading) Color(0xFFFFCC00) else Color(0xFF00FF00), shape = RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center
-                )
+                ) {
+                }
                 Text(if (downloading) "DESCARGANDO" else if (isLoading) "CARGANDO" else "ONLINE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF888888))
             }
         }
